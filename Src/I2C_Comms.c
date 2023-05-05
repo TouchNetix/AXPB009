@@ -6,7 +6,7 @@
 
 /*
 ******************************************************************************
-* Copyright (c) 2022 TouchNetix
+* Copyright (c) 2023 TouchNetix
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -37,6 +37,8 @@
 /*============ Defines ============*/
 #define I2C_SPEED_FAST  (0x0000020Bu)
 #define I2C_MAX_TIMEOUT      (65000u)
+
+#define HIGHEST_I2C_ADDR	(0x7EU)
 
 /*============ Local Variables ============*/
 volatile uint8_t i2c_tx_flag = 0;
@@ -81,7 +83,7 @@ HAL_StatusTypeDef I2CSendData(uint8_t *data, uint16_t len)
     // if doing a read from aXiom we want to use a repeated start
     if(aXiom_NumBytesRx)
     {
-        status = HAL_I2C_Master_Sequential_Transmit_IT(&hi2c_module, device_address<<1, data, aXiom_NumBytesTx, I2C_FIRST_FRAME);
+        status = HAL_I2C_Master_Sequential_Transmit_IT(&hi2c_module, device_address, data, aXiom_NumBytesTx, I2C_FIRST_FRAME);
 
         // wait for interrupt flag to set, or timeout
         do
@@ -102,7 +104,7 @@ HAL_StatusTypeDef I2CSendData(uint8_t *data, uint16_t len)
     // just doing a write, no need for repeated start
     else
     {
-        status = HAL_I2C_Master_Transmit_IT(&hi2c_module, device_address<<1, data, aXiom_NumBytesTx);
+        status = HAL_I2C_Master_Transmit_IT(&hi2c_module, device_address, data, aXiom_NumBytesTx);
 
         // wait for interrupt flag to set, or timeout
         do
@@ -128,7 +130,7 @@ HAL_StatusTypeDef I2CSendData(uint8_t *data, uint16_t len)
     // if this has reached the max value it means axiom hasn't responded
     if(timeout_count >= I2C_MAX_TIMEOUT)
     {
-        status = HAL_ERROR;
+        status = HAL_TIMEOUT;
     }
 
     return status;
@@ -140,7 +142,7 @@ HAL_StatusTypeDef I2CReceiveData(uint8_t *data, uint16_t len)
     uint16_t timeout_count = 0;
 
     // offset by 2 bytes to allow for status bytes
-    status = HAL_I2C_Master_Sequential_Receive_IT(&hi2c_module, device_address<<1, &data[2], aXiom_NumBytesRx, I2C_LAST_FRAME);
+    status = HAL_I2C_Master_Sequential_Receive_IT(&hi2c_module, device_address, &data[2], aXiom_NumBytesRx, I2C_LAST_FRAME);
 
     // wait for interrupt flag to set, or timeout
     do
@@ -165,7 +167,7 @@ HAL_StatusTypeDef I2CReceiveData(uint8_t *data, uint16_t len)
     // if this has reached the max value it means axiom hasn't responded
     if(timeout_count >= I2C_MAX_TIMEOUT)
     {
-        status = HAL_ERROR;
+        status = HAL_TIMEOUT;
     }
 
     return status;
@@ -245,25 +247,27 @@ HAL_StatusTypeDef do_i2c_comms(void)
   */
 uint8_t get_i2c_address(void)
 {
-    uint8_t temp_address = 0x00;
-    HAL_StatusTypeDef check = HAL_ERROR;
-    uint8_t buf[1];
-    buf[0] = 0x00;
+    uint8_t temp_address = 0;
+    uint8_t buf[1U];
+    buf[0] = 0x00U;
 
-    while((check != HAL_OK) && (temp_address <= 0x7E))
+    // 0x00 is general call address so skip it
+    for (temp_address = 1U; temp_address < HIGHEST_I2C_ADDR; temp_address++)
     {
-        // never checks address 0, could be an issue? (probably not)
-        temp_address++;
-        // sends 0 bytes, we're only looking for the device to retrun an ACK
-        // this is a blocking function meaning device will lock up if no device connected and Timeout duration is set to HAL_MAX_DELAY, probably want to choose a smaller value eventually
-        check = HAL_I2C_Master_Transmit(&hi2c_module, temp_address<<1, buf, 0, HAL_MAX_DELAY);
+        // Sends 0 bytes, we're only looking for the device to return an ACK
+        // This is a blocking function meaning device will lock up if no device connected and Timeout duration is set to HAL_MAX_DELAY, probably want to choose a smaller value eventually
+        if (HAL_I2C_Master_Transmit(&hi2c_module, (temp_address << 1U), buf, 0U, HAL_MAX_DELAY) == HAL_OK)
+        {
+            // Device found
+            break;
+        }
     }
 
-    if(check != HAL_OK)
+    if(temp_address == HIGHEST_I2C_ADDR)
     {
         // address not found
-        temp_address = 0;
+        temp_address = 0U;
     }
 
-    return temp_address;
+    return (temp_address << 1U);
 }

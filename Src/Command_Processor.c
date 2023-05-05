@@ -6,7 +6,7 @@
 
 /*
 ******************************************************************************
-* Copyright (c) 2022 TouchNetix
+* Copyright (c) 2023 TouchNetix
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -128,8 +128,6 @@
 /*============ Exported Variables ============*/
 bool    boGenericTBPResponseWaiting = 0;
 bool    boPressTBPResponseWaiting = 0;
-bool    boRespondNow = 1;   // indicates the host is waiting for some sort of reply (normally status) - Unless specified, all commands send a response
-                            // (Done this way as it saves on flash)
 uint8_t *pTBPCommandReport = 0;
 
 static bool UsageReadWrite_ErrorChecks(int16_t usage_table_idx, uint16_t usage_length_in_bytes);
@@ -184,6 +182,7 @@ void ProcessTBPCommand()
     bool boInternalProxy_temp;
     boInternalProxy_temp = boInternalProxy; // stores the proxy mode so it can be reinstated in some functions (e.g. toggling digitizer, want proxy to be in same state as before command was sent)
     boProxyMode_temp = boProxyEnabled;  // stores the proxy mode so it can be reinstated in some functions (e.g. toggling digitizer, want proxy to be in same state as before command was sent)
+    bool boRespondNow = 1;   // indicates the host is waiting for some sort of reply (normally status) - Unless specified, all commands send a response
 
     // if proxy mode is active and command comes via control endpoint, normally means host wants bridge to stop proxy so clear bit and de-init the interrupt line
     if(target_interface == GENERIC_INTERFACE_NUM)
@@ -214,9 +213,18 @@ void ProcessTBPCommand()
             {
                 pTBPCommandReport[1] = SPI_MODE_ADDRESS;
             }
-            else if(comms_mode == I2C)
+            else if (comms_mode == I2C)
             {
-                pTBPCommandReport[1] = device_address;
+                if (device_address == 0U)
+                {
+                    // Device could not be found, return error
+                    pTBPCommandReport[1] = (uint8_t) I2C_ERROR;
+                }
+                else
+                {
+                    // Address is stored in i2c format (i.e. lsb is the RW bit)
+                    pTBPCommandReport[1] = device_address >> 1U;
+                }
             }
             else
             {
@@ -266,12 +274,6 @@ void ProcessTBPCommand()
 //-------
         case CMD_MULTIPAGE_READ: //0x71     /* NOTE: this is NOT the same as proxy mode, TH2 will request this command each time it wants a block */
         {
-            byMultiPage_Semaphore_UsageNumber = pTBPCommandReport[7];
-            byMultiPage_Semaphore_UsageOffset = pTBPCommandReport[8];
-            byMultiPage_Semaphore_StartByte   = pTBPCommandReport[9];
-            byMultiPage_Semaphore_StopByte    = pTBPCommandReport[10];
-            write_multipage_semaphore(START);
-
             aXiom_NumBytesTx          = pTBPCommandReport[1];  // no. bytes to write --> page num., no. bytes to read, RnW byte
             ProxyMP_TotalNumBytesRx = ((uint16_t)pTBPCommandReport[3] << 8) | (uint16_t)pTBPCommandReport[2]; // TOTAL no. bytes to read (concatenated into a 16 bit word)
             byProxyMP_PageLength    = pTBPCommandReport[4];   // length of a page (in case page size changes in firmware update)

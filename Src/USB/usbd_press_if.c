@@ -95,7 +95,6 @@ __ALIGN_BEGIN static uint8_t PRESS_HID_ReportDesc_FS[USBD_PRESS_HID_REPORT_DESC_
 /*============ Local Variables ============*/
 
 /*============ Typedefs ============*/
-USBD_HandleTypeDef hUsbDeviceFS;
 USBD_PRESS_HID_ItfTypeDef USBD_PressHID_fops_FS =
 {
   PRESS_HID_ReportDesc_FS,

@@ -6,7 +6,7 @@
 
 /*
 ******************************************************************************
-* Copyright (c) 2022 TouchNetix
+* Copyright (c) 2023 TouchNetix
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -181,11 +181,6 @@ int main(void)
                 // set address bytes for Tx
                 aXiom_Tx_Buffer[0] = (uint8_t)((wdProxyMP_AddrStart & 0xFF) + byBytesOffsetIntoPage);
                 aXiom_Tx_Buffer[1] = (uint8_t)((wdProxyMP_AddrStart >> 8) + byPagesMovedThrough);
-
-                if(ProxyMP_TotalNumBytesRx == 0)    /* No data left to read so send command to aXiom to say we're done */
-                {
-                    write_multipage_semaphore(STOP);
-                }
             }
         }
 

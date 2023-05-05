@@ -6,7 +6,7 @@
 
 /*
 ******************************************************************************
-* Copyright (c) 2022 TouchNetix
+* Copyright (c) 2023 TouchNetix
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -97,10 +97,6 @@ struct usagetableentry_st usagetable[MAX_NUM_USAGES];
 /*============ Exported Variables ============*/
 uint16_t u34_addr;
 uint16_t u35_addr;
-uint8_t  byMultiPage_Semaphore_UsageNumber = 0;
-uint8_t  byMultiPage_Semaphore_UsageOffset = 0;
-uint8_t  byMultiPage_Semaphore_StartByte   = 0;
-uint8_t  byMultiPage_Semaphore_StopByte    = 0;
 
 /*============ Local Function Prototypes ============*/
 
@@ -417,80 +413,6 @@ void adjust_descriptors_from_HID_PARAMETER_IDs(void)
         {
             mouse_parallel_digitizer_ReportDesc_FS[LOGMAX_Y_FIRST_TOUCH_LO + (touch_num * ARRAY_CONST)] = LOBYTE(LogMaxX); // Low byte
             mouse_parallel_digitizer_ReportDesc_FS[LOGMAX_Y_FIRST_TOUCH_HI + (touch_num * ARRAY_CONST)] = HIBYTE(LogMaxX); // High byte
-        }
-    }
-}
-
-//--------------------------
-
-/* writes 1 byte to a register addressed by page number and offset (usually uF1 but could be used for something else I guess))
- * @param Semaphore indicates if we're starting or stopping a block read
- */
-void write_multipage_semaphore(uint8_t Semaphore)
-{
-    uint8_t status = 0;
-    int8_t  usage_table_idx = -1;
-    uint8_t SourcePointer_Desired = 0; //the source that we want to point uF1 to (deltas, baseline[0], baseline[1]...)
-    uint8_t SourcePointer_Read = 0;
-    uint8_t Retry = 0;
-    uint16_t UsageAddress;
-
-    if(usage_table_idx < 0) // find the usage in the usage table
-    {
-        usage_table_idx = find_usage_from_table(byMultiPage_Semaphore_UsageNumber);
-    }
-
-    if(usage_table_idx >= 0)
-    {
-        // set the address used to write the semaphore to
-        UsageAddress = usagetable[usage_table_idx].startpage << 8;
-        UsageAddress += byMultiPage_Semaphore_UsageOffset;
-
-        SourcePointer_Desired = Semaphore ? byMultiPage_Semaphore_StartByte : byMultiPage_Semaphore_StopByte;   // payload
-
-        aXiom_Tx_Buffer[0] = (uint8_t)(UsageAddress & 0xFF);
-        aXiom_Tx_Buffer[1] = (uint8_t)((UsageAddress >> 8) & 0xFF);
-        aXiom_Tx_Buffer[2] = 0x01u; // writing just 1 byte this time
-        aXiom_Tx_Buffer[3] = WRITE; // RnW = 0 --> write
-        aXiom_Tx_Buffer[4] = SourcePointer_Desired;
-
-        aXiom_NumBytesTx = 5; // 4 command bytes and 1 payload
-        aXiom_NumBytesRx = 0;
-
-        // transmit to connected device
-        status = Comms_Sequence();
-        if(status == HAL_OK)
-        {
-
-        }
-        else    //HAL_ERROR
-        {
-            Retry = 201; // setting this means we don't do the next bit
-        }
-
-        while((SourcePointer_Read != SourcePointer_Desired) && (Retry < MAX_RETRY_NUM))   // wait for source to change in connected device
-        {
-            HAL_Delay(10);
-
-            // prepare buffers
-            aXiom_NumBytesTx = 4; // 4 command bytes
-            aXiom_NumBytesRx = 1; // read 1 byte
-
-            aXiom_Tx_Buffer[0] = (uint8_t)(UsageAddress & 0xFF);
-            aXiom_Tx_Buffer[1] = (uint8_t)((UsageAddress >> 8) & 0xFF);
-            aXiom_Tx_Buffer[2] = 1; // read 1 byte
-            aXiom_Tx_Buffer[3] = READ; // RnW = 1 --> read
-
-            // transmit to connected device
-            status = Comms_Sequence();
-            if(status == HAL_ERROR)
-            {
-                break;
-            }
-
-            SourcePointer_Read = aXiom_Rx_Buffer[CircularBufferHead][2];    // byte 1 and 2 are for comms status and return codes (not needed here but much easier to leave them in and just read offset)
-
-            Retry++;
         }
     }
 }
