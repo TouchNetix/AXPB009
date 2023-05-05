@@ -6,7 +6,7 @@
 
 /*
 ******************************************************************************
-* Copyright (c) 2022 TouchNetix
+* Copyright (c) 2023 TouchNetix
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -61,16 +61,11 @@ extern struct usagetableentry_st usagetable[MAX_NUM_USAGES];
 /*============ Exported Variables ============*/
 extern uint16_t u34_addr;
 extern uint16_t u35_addr;
-extern uint8_t  byMultiPage_Semaphore_UsageNumber;
-extern uint8_t  byMultiPage_Semaphore_UsageOffset;
-extern uint8_t  byMultiPage_Semaphore_StartByte;
-extern uint8_t  byMultiPage_Semaphore_StopByte;
 extern uint8_t  WakeupMode;
 
 /*============ Exported Function Prototypes ============*/
 uint8_t build_usage_table(void);
 int8_t  find_usage_from_table(uint8_t byUsagenum);
-void    write_multipage_semaphore(uint8_t semaphore);
 void    configure_HID_PARAMETER_IDs(void);
 void    adjust_descriptors_from_HID_PARAMETER_IDs(void);
 

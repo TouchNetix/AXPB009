@@ -6,7 +6,7 @@
 
 /*
 ******************************************************************************
-* Copyright (c) 2022 TouchNetix
+* Copyright (c) 2023 TouchNetix
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -41,6 +41,7 @@
 #include "Proxy_driver.h"
 #include "Timers_and_LEDs.h"
 #include "Init.h"
+#include "Delay.h"
 
 /*============ Defines ============*/
 #define INVALID_SETUP   (0xFF)
@@ -205,6 +206,10 @@ uint8_t do_spi_comms(void)
                 spi_state = TRANSMIT_AND_RECEIVE;
                 boCommsInProcess = 0; // stop executing this function
                 spi_TxRx_flag = 0;
+
+                // Delay to prevent reading in quick succession. Need to give aXiom time to setup the next transfer.
+                // Only required for SPI.
+                delay_1us(100U);
             }
 
             break;

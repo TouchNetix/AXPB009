@@ -377,7 +377,6 @@ __ALIGN_BEGIN uint8_t mouse_parallel_digitizer_ReportDesc_FS[USBD_MOUSE_PAR_DIGI
 };
 
 /*============ Typedefs ============*/
-USBD_HandleTypeDef hUsbDeviceFS;
 USBD_MOUSE_HID_ItfTypeDef USBD_MouseHID_fops_FS =
 {
   NULL, // to be populated by MatchReportDescriptorSizeToMode() during initialisation

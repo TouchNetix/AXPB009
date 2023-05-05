@@ -42,7 +42,7 @@
 
 
 /*============ Exported Types ============*/
-USBD_HandleTypeDef hUsbDeviceFS;
+
 
 /*============ Exported Variables ============*/
 volatile bool   boCommandWaitingToDecode = false;
