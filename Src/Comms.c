@@ -103,12 +103,6 @@ HAL_StatusTypeDef Comms_Sequence(void)
                 aXiom_Rx_Buffer[CircularBufferHead][0] = COMMS_TIMEOUT;
             }
 
-            // Make sure I2C recovers to a known state
-            if(comms_mode == I2C)
-            {
-            	MX_I2C_Init();
-            }
-
             break;
         }
 

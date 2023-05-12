@@ -235,6 +235,12 @@ HAL_StatusTypeDef do_i2c_comms(void)
         status = I2CReceiveData(aXiom_Rx_Buffer[CircularBufferHead], aXiom_NumBytesRx);
     }
 
+    // Make sure I2C recovers to a known state if comms has failed
+    if(status != HAL_OK)
+    {
+    	HAL_I2C_Master_Abort_IT(&hi2c_module, device_address);
+    }
+
     return status;
 }
 
