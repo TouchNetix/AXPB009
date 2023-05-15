@@ -38,7 +38,8 @@
 #define I2C_SPEED_FAST  (0x0000020Bu)
 #define I2C_MAX_TIMEOUT      (65000u)
 
-#define HIGHEST_I2C_ADDR	(0x7EU)
+#define MAX_ADDR_SEARCH_ATTEMPTS	(250U)
+#define HIGHEST_I2C_ADDR			(0x7EU)
 
 /*============ Local Variables ============*/
 volatile uint8_t i2c_tx_flag = 0;
@@ -247,29 +248,40 @@ HAL_StatusTypeDef do_i2c_comms(void)
 //--------------------------
 
 /**
-  * @brief Finds the address of the connected aXiom device
-  * @param None
-  * @retval I2C address
+  * @brief		Scans the 7-bit i2c address range looking for a device to connect to.
+  * @details 	aXiom typically has address 0x66 or 0x67.
+  * @return  	Address of connected device in 7-bit format, left shifted by 1.
   */
 uint8_t get_i2c_address(void)
 {
-    uint8_t temp_address = 0;
-    uint8_t buf[1U];
-    buf[0] = 0x00U;
+    uint8_t temp_address;
+    uint8_t retry_count = 0;
+    bool	address_found = false;
 
-    // 0x00 is general call address so skip it
-    for (temp_address = 1U; temp_address < HIGHEST_I2C_ADDR; temp_address++)
+    // Waits for a maximum of ~12.5 seconds for aXiom to ACK an address request
+    do
     {
-        // Sends 0 bytes, we're only looking for the device to return an ACK
-        // This is a blocking function meaning device will lock up if no device connected and Timeout duration is set to HAL_MAX_DELAY, probably want to choose a smaller value eventually
-        if (HAL_I2C_Master_Transmit(&hi2c_module, (temp_address << 1U), buf, 0U, HAL_MAX_DELAY) == HAL_OK)
-        {
-            // Device found
-            break;
-        }
-    }
+	    uint8_t buf[1U];
+	    buf[0] = 0x00U;
 
-    if(temp_address == HIGHEST_I2C_ADDR)
+		for (temp_address = 0x66U; temp_address < 0x68U; temp_address++)
+		{
+			// Sends 0 bytes, we're only looking for the device to return an ACK
+			// This is a blocking function meaning device will lock up if no device connected and Timeout duration is set to HAL_MAX_DELAY, probably want to choose a smaller value eventually
+			if (HAL_I2C_Master_Transmit(&hi2c_module, (temp_address << 1U), buf, 0U, HAL_MAX_DELAY) == HAL_OK)
+			{
+				// Device found
+				address_found = true;
+				break;
+			}
+		}
+
+		// Sleep for a bit before trying again
+		HAL_Delay(50U);
+		retry_count++;
+    } while ((address_found == false) && (retry_count < MAX_ADDR_SEARCH_ATTEMPTS));
+
+    if(retry_count >= MAX_ADDR_SEARCH_ATTEMPTS)
     {
         // address not found
         temp_address = 0U;
