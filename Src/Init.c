@@ -47,8 +47,8 @@
 #include "Digitizer.h"
 
 /*============ Defines ============*/
-#define USAGETABLE_MAX_RETRY_NUM    (250)
-#define MAX_WAIT    (20000)
+#define USAGETABLE_MAX_RETRY_NUM    (250U)
+#define MAX_WAIT    				(20000U)
 
 /*============ Local Variables ============*/
 
@@ -175,6 +175,9 @@ void Device_Init(void)
     MX_TIM16_Init();
     MX_GPIO_Init();
     MX_DMA_Init();
+    LEDs_Init();
+
+    HAL_GPIO_TogglePin(LED_AXIOM_GPIO_Port, LED_AXIOM_Pin);
 
     /* Comms selection */
     if(check_comms_mode() == I2C)
@@ -189,42 +192,41 @@ void Device_Init(void)
         MX_SPI_Init();
     }
 
-    /* Initialise all the LEDs */
-    LEDs_Init();
-
-    HAL_GPIO_TogglePin(LED_AXIOM_GPIO_Port, LED_AXIOM_Pin);
-
-    /* Parse TCP device */
-    do
+    // If we're in I2C mode and aXiom hasn't been found, don't bother trying to read the usage table.
+    // We've waited ~12s already, so just come up in Bridge Only mode (won't be able to read usage table anyway).
+    if (((check_comms_mode() == I2C) && (device_address != 0)) || (check_comms_mode() == SPI))
     {
-        uint8_t status = build_usage_table();    // parse usages BEFORE initialising USB --> won't work correctly otherwise as host won't get any reponses whilst table is being generated
-        static uint8_t led_count = 0;
-
-        if(status == HAL_OK)
+        /* Parse TCP device */
+        do
         {
-            // usages parsed successfully
-            break;
-        }
-        else
-        {
-            // failed to parse usages, wait for a bit then try again
-            HAL_Delay(50); //ms
+            uint8_t status = build_usage_table();    // parse usages BEFORE initialising USB --> won't work correctly otherwise as host won't get any reponses whilst table is being generated
+            static uint8_t led_count = 0;
 
-            if(led_count > 1)
+            if(status == HAL_OK)
             {
-                HAL_GPIO_TogglePin(LED_AXIOM_GPIO_Port, LED_AXIOM_Pin);
-                HAL_GPIO_TogglePin(LED_USB_GPIO_Port, LED_USB_Pin);
-                led_count = 0;
+                // usages parsed successfully
+                break;
             }
             else
             {
-                led_count++;
+                // failed to parse usages, wait for a bit then try again
+                HAL_Delay(50U); //ms
+
+                if(led_count > 1U)
+                {
+                    HAL_GPIO_TogglePin(LED_AXIOM_GPIO_Port, LED_AXIOM_Pin);
+                    HAL_GPIO_TogglePin(LED_USB_GPIO_Port, LED_USB_Pin);
+                    led_count = 0;
+                }
+                else
+                {
+                    led_count++;
+                }
             }
-        }
 
-        retry++;
-
-    } while(retry < USAGETABLE_MAX_RETRY_NUM);   // holds device here for ~12.5 seconds, enough time for aXiom to exit bootloader if in there for some reason (turned off for development I ain't waiting 12.5 seconds each time; time is precious man)
+            retry++;
+        } while(retry < USAGETABLE_MAX_RETRY_NUM);   // holds device here for ~12 seconds, enough time for aXiom to exit bootloader if in there for some reason
+    }
 
     HAL_GPIO_WritePin(LED_AXIOM_GPIO_Port, LED_AXIOM_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(LED_USB_GPIO_Port, LED_USB_Pin, GPIO_PIN_RESET);

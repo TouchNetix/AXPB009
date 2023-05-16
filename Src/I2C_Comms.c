@@ -39,7 +39,6 @@
 #define I2C_MAX_TIMEOUT      (65000u)
 
 #define MAX_ADDR_SEARCH_ATTEMPTS	(250U)
-#define HIGHEST_I2C_ADDR			(0x7EU)
 
 /*============ Local Variables ============*/
 volatile uint8_t i2c_tx_flag = 0;
@@ -263,6 +262,7 @@ uint8_t get_i2c_address(void)
     {
 	    uint8_t buf[1U];
 	    buf[0] = 0x00U;
+	    static uint8_t led_count = 0;
 
 		for (temp_address = 0x66U; temp_address < 0x68U; temp_address++)
 		{
@@ -275,13 +275,24 @@ uint8_t get_i2c_address(void)
 				break;
 			}
 		}
+		// Flash some LEDs
+        if(led_count > 1)
+        {
+            HAL_GPIO_TogglePin(LED_AXIOM_GPIO_Port, LED_AXIOM_Pin);
+            HAL_GPIO_TogglePin(LED_USB_GPIO_Port, LED_USB_Pin);
+            led_count = 0;
+        }
+        else
+        {
+            led_count++;
+        }
 
 		// Sleep for a bit before trying again
 		HAL_Delay(50U);
 		retry_count++;
     } while ((address_found == false) && (retry_count < MAX_ADDR_SEARCH_ATTEMPTS));
 
-    if(retry_count >= MAX_ADDR_SEARCH_ATTEMPTS)
+    if(address_found == false)
     {
         // address not found
         temp_address = 0U;
