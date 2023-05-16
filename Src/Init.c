@@ -48,7 +48,7 @@
 
 /*============ Defines ============*/
 #define USAGETABLE_MAX_RETRY_NUM    (250U)
-#define MAX_WAIT    				(20000U)
+#define MAX_WAIT                    (20000U)
 
 /*============ Local Variables ============*/
 

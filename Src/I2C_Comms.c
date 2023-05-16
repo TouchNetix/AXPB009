@@ -247,35 +247,35 @@ HAL_StatusTypeDef do_i2c_comms(void)
 //--------------------------
 
 /**
-  * @brief		Scans the 7-bit i2c address range looking for a device to connect to.
-  * @details 	aXiom typically has address 0x66 or 0x67.
-  * @return  	Address of connected device in 7-bit format, left shifted by 1.
+ * @brief       Scans the 7-bit i2c address range looking for a device to connect to.
+ * @details     aXiom typically has address 0x66 or 0x67.
+ * @return      Address of connected device in 7-bit format, left shifted by 1.
   */
 uint8_t get_i2c_address(void)
 {
     uint8_t temp_address;
     uint8_t retry_count = 0;
-    bool	address_found = false;
+    bool    address_found = false;
 
     // Waits for a maximum of ~12.5 seconds for aXiom to ACK an address request
     do
     {
-	    uint8_t buf[1U];
-	    buf[0] = 0x00U;
-	    static uint8_t led_count = 0;
+        uint8_t buf[1U];
+        buf[0] = 0x00U;
+        static uint8_t led_count = 0;
 
-		for (temp_address = 0x66U; temp_address < 0x68U; temp_address++)
-		{
-			// Sends 0 bytes, we're only looking for the device to return an ACK
-			// This is a blocking function meaning device will lock up if no device connected and Timeout duration is set to HAL_MAX_DELAY, probably want to choose a smaller value eventually
-			if (HAL_I2C_Master_Transmit(&hi2c_module, (temp_address << 1U), buf, 0U, HAL_MAX_DELAY) == HAL_OK)
-			{
-				// Device found
-				address_found = true;
-				break;
-			}
-		}
-		// Flash some LEDs
+        for (temp_address = 0x66U; temp_address < 0x68U; temp_address++)
+        {
+            // Sends 0 bytes, we're only looking for the device to return an ACK
+            // This is a blocking function meaning device will lock up if no device connected and Timeout duration is set to HAL_MAX_DELAY, probably want to choose a smaller value eventually
+            if (HAL_I2C_Master_Transmit(&hi2c_module, (temp_address << 1U), buf, 0U, HAL_MAX_DELAY) == HAL_OK)
+            {
+                // Device found
+                address_found = true;
+                break;
+            }
+        }
+        // Flash some LEDs
         if(led_count > 1)
         {
             HAL_GPIO_TogglePin(LED_AXIOM_GPIO_Port, LED_AXIOM_Pin);
@@ -287,9 +287,9 @@ uint8_t get_i2c_address(void)
             led_count++;
         }
 
-		// Sleep for a bit before trying again
-		HAL_Delay(50U);
-		retry_count++;
+        // Sleep for a bit before trying again
+        HAL_Delay(50U);
+        retry_count++;
     } while ((address_found == false) && (retry_count < MAX_ADDR_SEARCH_ATTEMPTS));
 
     if(address_found == false)
