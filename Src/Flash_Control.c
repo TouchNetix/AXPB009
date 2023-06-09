@@ -228,8 +228,8 @@ uint8_t check_boot_bits(void)
 /*============ Exported Functions ============*/
 void Store_BridgeMode_To_Flash(uint8_t BridgeMode_to_store, uint8_t restart_required)
 {
+    Device_DeInit();
     write_to_option_byte(BridgeMode_to_store, BYTE0);
-
     if(restart_required == RESTART)
     {
         // need to reset the chip using the following command otherwise the data is only saved whilst the power is connected --> power cycle will wipe it!
@@ -363,6 +363,8 @@ void write_boot_sel(uint8_t boot_bit)
 
 void StartBootloader(void)
 {
+    Device_DeInit();
+
     write_boot_sel(0);
 
 #if defined(STM32F042x6)
@@ -382,7 +384,7 @@ void StartBootloader(void)
     // Reset the processor --> this call makes sure the option bytes are reloaded correctly at reset
     HAL_FLASH_OB_Launch();
 
-    /* We then do a check in SystemInit() at startup to see if this 'magic number' has been set */
+    // We then do a check in SystemInit() at startup to see if this 'magic number' has been set
 }
 
 /*-----------------------------------------------------------*/
