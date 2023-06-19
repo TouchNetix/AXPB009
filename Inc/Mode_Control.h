@@ -40,8 +40,8 @@ extern  bool    boMouseEnabled;
 extern  bool    boBlockReports;
 
 /*============ Exported Functions ============*/
+void Device_DeInit(void);
 bool InMouseOrDigitizerMode(void);
-//bool InCompositeMode(void);
 void RestartBridge(void);
 bool WakeupHost(uint8_t ByNumTouches, uint8_t byReportZ);
 

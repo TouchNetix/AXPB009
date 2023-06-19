@@ -42,7 +42,9 @@
 
 /*============ Defines ============*/
 
+
 /*============ Local Variables ============*/
+
 
 /*============ Exported Variables ============*/
 uint8_t WakeupMode      = 0;
@@ -50,8 +52,7 @@ bool    boBlockReports  = 0;    // when the host sends a command that needs a re
                                 // to block any sending until the command has been processed
 
 /*============ Local Functions ============*/
-void WDT_Reset(void);
-void Device_DeInit(void);
+
 
 /*============ Exported Functions ============*/
 // returns true if digitizer/mouse not enabled
@@ -68,26 +69,11 @@ bool InMouseOrDigitizerMode(void)
 }
 
 /*-----------------------------------------------------------*/
-// checks the number of active interfaces - if 2 or more then return true
-//bool InCompositeMode(void)
-//{
-//    bool status;
-//
-//    if(USBD_COMPOSITE_HID_CfgDesc[4] >= 2)
-//        status = true;
-//    else
-//        status = false;
-//
-//    return status;
-//}
-
-/*-----------------------------------------------------------*/
 
 void RestartBridge(void)
 {
-    __disable_irq();
     Device_DeInit();
-    WDT_Reset();
+    HAL_NVIC_SystemReset();
 }
 
 /*-----------------------------------------------------------*/
@@ -142,23 +128,18 @@ bool WakeupHost(uint8_t NumTouches, uint8_t byReportZ)
 
 
 /*============ Local Functions ============*/
-void WDT_Reset(void)
-{
-    RCC->APB1ENR |= RCC_APB1ENR_WWDGEN;
-    WWDG->CFR |= 0x41; //sets the watchdog counter to 0x40
-    WWDG->CR  |= WWDG_CR_WDGA;   // enables watchdog timer --> resets when counter reaches 0x3F
-}
-
-/*-----------------------------------------------------------*/
-
 // groups all de-initialisations
 void Device_DeInit(void)
 {
+    // Disconnect from USB bus and wait - Windows doesn't seem to like a device disconnect and re-connecting
+    // in rapid succession
     USBD_Stop(&hUsbDeviceFS);
     USBD_DeInit(&hUsbDeviceFS);
+    HAL_Delay(3000);
+
     HAL_TIM_Base_Stop_IT(&htim16);
 
-    // Only deinit the comms module in use
+    // Only deinit the comms module in use as the
     // pointer to other will be NULL and will result in a hardfault
     if(comms_mode == SPI)
     {
