@@ -41,11 +41,9 @@
 #define MODE_ABSOLUTE_MOUSE         (0x01u)
 #define MODE_SERIAL_DIGITIZER       (0x02u) /* redundant */
 #define MODE_PARALLEL_DIGITIZER     (0x03u)
-#define RESTART                     (1)
-#define NO_RESTART                  (0)
 
 /*============ Exported Function Prototypes ============*/
-void    Store_BridgeMode_To_Flash(uint8_t BridgeMode_to_store, uint8_t restart_required);
+void    Store_BridgeMode_To_Flash(uint8_t BridgeMode_to_store);
 uint8_t GetDeviceModeFromFlash(void);
 uint8_t check_boot_sel(void);
 void    check_boot_config(void);
