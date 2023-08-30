@@ -226,15 +226,12 @@ uint8_t check_boot_bits(void)
 }
 
 /*============ Exported Functions ============*/
-void Store_BridgeMode_To_Flash(uint8_t BridgeMode_to_store, uint8_t restart_required)
+void Store_BridgeMode_To_Flash(uint8_t BridgeMode_to_store)
 {
-    Device_DeInit();
     write_to_option_byte(BridgeMode_to_store, BYTE0);
-    if(restart_required == RESTART)
-    {
-        // need to reset the chip using the following command otherwise the data is only saved whilst the power is connected --> power cycle will wipe it!
-        HAL_FLASH_OB_Launch();
-    }
+
+    // need to reset the chip using the following command otherwise the data is only saved whilst the power is connected --> power cycle will wipe it!
+    HAL_FLASH_OB_Launch();
 }
 
 /*-----------------------------------------------------------*/
@@ -256,13 +253,15 @@ uint8_t GetDeviceModeFromFlash(void)
         // make sure the bridge is in a known mode, if not then put it into basic mode
         if((BridgeMode_temp != MODE_TBP_BASIC) && (BridgeMode_temp != MODE_ABSOLUTE_MOUSE) && (BridgeMode_temp != MODE_PARALLEL_DIGITIZER))
         {
-            Store_BridgeMode_To_Flash(MODE_PARALLEL_DIGITIZER, RESTART);
+            HAL_DeInit();
+            Store_BridgeMode_To_Flash(MODE_PARALLEL_DIGITIZER);
         }
     }
     else
     {
         // discrepancy detected, write the default mode back to flash
-        Store_BridgeMode_To_Flash(MODE_PARALLEL_DIGITIZER, RESTART);
+        HAL_DeInit();
+        Store_BridgeMode_To_Flash(MODE_PARALLEL_DIGITIZER);
     }
 
     return BridgeMode_temp;
