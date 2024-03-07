@@ -65,6 +65,7 @@ static  void    MX_GPIO_Init(void);
 static  void    MX_DMA_Init(void);
 static  void    MX_TIM16_Init(void);
 static  void    LEDs_Init(void);
+static  bool    detect_host_presence(void);
 static  void    Reset_Device(void);
 static  void    Change_Axiom_Mode(uint8_t comms_sel);
 
@@ -96,9 +97,6 @@ void Device_Init(void)
     Change_Axiom_Mode(I2C);
 
     GPIO_InitTypeDef    GPIO_InitStruct = {0};
-    uint32_t            host_detection_time_limit = 0;
-    bool                host_detected = 0;
-    uint16_t            host_detected_count = 0;
 
     __HAL_RCC_GPIOC_CLK_ENABLE();
     __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -112,51 +110,10 @@ void Device_Init(void)
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-    do
-    {
-        /* Physical connections of the USB data line (before USB module is enabled)
-         * Host side:
-         *      ~20k pull downs on D+ and D-
-         * Bridge side:
-         *      220k pull ups on D+ and D-
-         *
-         * If host is present:
-         *      D+ and D- will read 0
-         *
-         * Host not present
-         *      D+ and D- will read 1
-         *
-         * In the event of a transient (such as emc testing) we need to be certain the host is actually there,
-         * so we check for multiple loops and reset our counter if we 'lose' the host
-         */
-        if((HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_11) == 0) && (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_12) == 0))
-        {
-            if(host_detected_count < 2000)
-            {
-                host_detected_count++;
-            }
-        }
-        else
-        {
-            host_detected_count = 0;
-        }
-
-        if(host_detected_count >= 2000)
-        {
-            host_detected = 1;
-        }
-        else
-        {
-            host_detected = 0;
-        }
-
-        host_detection_time_limit++;
-    }
-    while(host_detection_time_limit <= MAX_WAIT);
-
     /* We can now check if a host is connected to the USB and decide what to do:
      * Host connected - Put axiom back in SPI mode and run our normal routine
      * Host absent - Release nRESET line and do nothing --> someone else is wanting to control axiom */
+    bool host_detected = detect_host_presence();
     if(host_detected)
     {
         HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11);
@@ -164,9 +121,20 @@ void Device_Init(void)
     }
     else
     {
-        // no host connection detected - release nRESET in case the i2c device needs control over it
+        // no host connection detected - release nRESET in case the i2c host needs control over it
         HAL_GPIO_DeInit(nRESET_GPIO_Port, nRESET);
-        while(1);
+        while(host_detected == false)
+        {
+            // Keep trying to connect to a USB host.
+            // If the USB cable is being connected slowly, the power pins are connected before the data pins,
+            // so the bridge might assume no host is present!
+            HAL_Delay(500);
+            host_detected = detect_host_presence();
+        }
+
+        // Host was detected! Deinit the pins as they're about to be used for USB
+        HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11);
+        HAL_GPIO_DeInit(GPIOA, GPIO_PIN_12);
     }
 
 /*--------------------------------------------*/
@@ -351,9 +319,6 @@ void SystemClock_Config(void)
   * @param None
   * @retval None
   */
-
-//--------------------------
-
 static void MX_DMA_Init(void)
 {
     /* DMA controller clock enable */
@@ -389,7 +354,8 @@ static void MX_GPIO_Init(void)
     /* slave select for SPI */
     GPIO_InitStruct.Pin  = nSS_SPI;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
+//    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(nSS_SPI_GPIO_Port, &GPIO_InitStruct);
 
     /* Used as reset for aXiom */
@@ -397,6 +363,59 @@ static void MX_GPIO_Init(void)
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
     GPIO_InitStruct.Pull = GPIO_PULLUP;
     HAL_GPIO_Init(nRESET_GPIO_Port, &GPIO_InitStruct);
+}
+
+//--------------------------
+
+static bool detect_host_presence(void)
+{
+    uint32_t    host_detection_time_limit = 0;
+    uint16_t    host_detected_count = 0;
+    bool        host_detected = false;
+
+    do
+    {
+        /* Physical connections of the USB data line (before USB module is enabled)
+         * Host side:
+         *      ~20k pull downs on D+ and D-
+         * Bridge side:
+         *      220k pull ups on D+ and D-
+         *
+         * If host is present:
+         *      D+ and D- will read 0
+         *
+         * Host not present
+         *      D+ and D- will read 1
+         *
+         * In the event of a transient (such as emc testing) we need to be certain the host is actually there,
+         * so we check for multiple loops and reset our counter if we 'lose' the host
+         */
+        if((HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_11) == 0) && (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_12) == 0))
+        {
+            if(host_detected_count < 2000)
+            {
+                host_detected_count++;
+            }
+        }
+        else
+        {
+            host_detected_count = 0;
+        }
+
+        if(host_detected_count >= 2000)
+        {
+            host_detected = true;
+        }
+        else
+        {
+            host_detected = false;
+        }
+
+        host_detection_time_limit++;
+    }
+    while(host_detection_time_limit <= MAX_WAIT);
+
+    return host_detected;
 }
 
 //--------------------------
