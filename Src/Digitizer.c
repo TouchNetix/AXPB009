@@ -68,8 +68,19 @@
 #define BUTTON_RELEASE          (0x00)
 #define DATABYTES_PER_TOUCH     (7)
 
+/*============ Compilation Flags ============*/
+//#define MOUSEMODE_ABSOLUTE
+#define MOUSEMODE_RELATIVE
+
 /*============ Macros ============*/
 #define ALIGN_WITH_CORRECT_TOUCH(x) ((x-1)*DATABYTES_PER_TOUCH)
+
+/*============ Data Types ============*/
+enum en_RelativeMouseEvents
+{
+    eNewContact = 0,
+    ePreviousContact = 1,
+};
 
 /*============ Local Variables ============*/
 bool        boCRCCheckOK = 0;
@@ -77,7 +88,7 @@ uint16_t    DigitizerXCoord, DigitizerYCoord;
 uint8_t     byReportX_msb, byReportX_lsb;
 uint8_t     byReportY_msb, byReportY_lsb;
 uint8_t     byReportZ_msb, byReportZ_lsb;
-uint8_t     button_state;
+uint8_t     button_state; // bit 0 = left-button, bit 1 = right-button
 
 //This table was extracted from online tool at http://www.sunshine2k.de/coding/javascript/crc/crc_js.html and verified with one other online source
 //Note that it may also be known as 0xA001 in reverse polynomial notation (i.e. 0x8005 backwards)
@@ -130,6 +141,7 @@ uint8_t  wakeup_option                                      =  0;
 /*============ Local Function Prototypes ============*/
 static uint8_t GetXYZFromReport(bool boIgnoreCoords, uint8_t byTouchNum);
 static void    DecodeOneTouch(uint8_t byTouchToCheck, uint8_t *byStatus, uint8_t *wdXCoord, uint8_t *wdYCoord, uint8_t *byZAmplitude);
+static void    PrepareRelMouseReport(enum en_RelativeMouseEvents ContactEvent);
 static void    PrepareAbsMouseReport(void);
 static void    SendMouseRightClick(void);
 
@@ -188,6 +200,73 @@ static void DecodeOneTouch(uint8_t byTouchToCheck, uint8_t *byStatus, uint8_t *w
     *((wdYCoord) + 1) = byReportY_msb;
 
     *byZAmplitude = byReportZ_lsb;
+}
+
+/*-----------------------------------------------------------*/
+
+static void PrepareRelMouseReport(enum en_RelativeMouseEvents ContactEvent)
+{
+    // Need to keep track of where the mouse cursor is between frames and touch events
+    // Start off in the centre of the screen
+    static uint16_t CursorPositionX = 2047;
+    static uint16_t CursorPositionY = 2047;
+
+    // Always need the previous frames touch coordinates
+    static uint16_t PreviousFrameX = 2047;
+    static uint16_t PreviousFrameY = 2047;
+
+    // Get the coordinates from this frame
+    uint16_t ThisFrameX = DigitizerXCoord >> 4;
+    uint16_t ThisFrameY = DigitizerYCoord >> 4;
+
+    // If it's a new contact (appeared this frame), update the previous coordinates to use
+    // this position.
+    if (ContactEvent == eNewContact)
+    {
+        PreviousFrameX = ThisFrameX;
+        PreviousFrameY = ThisFrameY;
+    }
+
+    // Work out the new cursor coordinates
+    if (ThisFrameX > PreviousFrameX)
+    {
+        CursorPositionX += (ThisFrameX - PreviousFrameX);
+        CursorPositionX = (CursorPositionX > 4095) ? 4095 : CursorPositionX;
+    }
+    else
+    {
+        CursorPositionX -= (PreviousFrameX - ThisFrameX);
+        CursorPositionX = (CursorPositionX > 4095) ? 4095 : CursorPositionX;
+    }
+
+    if (ThisFrameY > PreviousFrameY)
+    {
+        CursorPositionY += (ThisFrameY - PreviousFrameY);
+        CursorPositionY = (CursorPositionY > 4095) ? 4095 : CursorPositionY;
+    }
+    else
+    {
+        CursorPositionY -= (PreviousFrameY - ThisFrameY);
+        CursorPositionY = (CursorPositionY > 4095) ? 4095 : CursorPositionY;
+    }
+
+    // Populate the report
+    usb_hid_mouse_report_in[0] = (0xF8 | button_state);
+
+    // X coordinates
+    usb_hid_mouse_report_in[1] = CursorPositionX & 0xFF;
+    usb_hid_mouse_report_in[2] = (CursorPositionX >> 8) & 0xFF;
+
+    // Y coordinates
+    usb_hid_mouse_report_in[3] = CursorPositionY & 0xFF;
+    usb_hid_mouse_report_in[4] = (CursorPositionY >> 8) & 0xFF;
+
+    // Flag that there is a report to send
+    boMouseReportToSend = 1;
+
+    // Finally, cache the touch coordinates from the previous frame
+    PreviousFrameX = ThisFrameX;
+    PreviousFrameY = ThisFrameY;
 }
 
 /*-----------------------------------------------------------*/
@@ -252,7 +331,7 @@ static uint8_t GetXYZFromReport(bool boIgnoreCoords, uint8_t byTouchToProcess)
     Temp |= (uint16_t)(u34_TCP_report[56]) | ((uint16_t)(u34_TCP_report[57]) << 8);
     Temp |= ((uint16_t)(u34_TCP_report[58]) | ((uint16_t)(u34_TCP_report[59]) << 8)) << 16;
 
-    if(boIgnoreCoords == 0) // sometimes we don't want to use the coordinates we're processing (e.g. second 'click' in mouse mode) so can choose to ignore them
+    if(boIgnoreCoords == DO_NOT_IGNORE_COORDS) // sometimes we don't want to use the coordinates we're processing (e.g. second 'click' in mouse mode) so can choose to ignore them
     {
         DigitizerXCoord = ((uint16_t)(byReportX_msb) << 8) | byReportX_lsb;
         DigitizerYCoord = ((uint16_t)(byReportY_msb) << 8) | byReportY_lsb;
@@ -440,6 +519,7 @@ void MouseDigitizer(void)
         }
         else if(usb_remote_wake_state == RESUMED)
         {
+#if defined(MOUSEMODE_ABSOLUTE)
             boTouch1Is = GetXYZFromReport(DO_NOT_IGNORE_COORDS, 1); // only copy the coordinates for the first touch --> second touch is a 'right click' so don't want location of it, just if it's present or not
 
             if(((byReportZ_lsb & 0x80) != 0x80)) // if z value is negative, reject the touch!
@@ -465,9 +545,52 @@ void MouseDigitizer(void)
                     }
                 }
             }
+#elif defined(MOUSEMODE_RELATIVE)
+            boTouch1Is = GetXYZFromReport(DO_NOT_IGNORE_COORDS, 1); // only copy the coordinates for the first touch --> second touch is a 'right click' so don't want location of it, just if it's present or not
+
+            if (((byReportZ_lsb & 0x80) != 0x80)) // if z value is negative, reject the touch!
+            {
+                if ((byNumTouchesIs < 2) && (byNumTouchesWas == 2))
+                {
+                    // Second contact removed, send a left click
+                    button_state = 1;
+                }
+                else
+                {
+                    button_state = 0;
+                }
+
+                if ((byNumTouchesIs == 0) && (byNumTouchesWas > 0))
+                {
+                    // All contacts removed
+                    button_state = 0;
+                    PrepareRelMouseReport(ePreviousContact);
+                }
+                else
+                {
+                    if (boTouch1Is)
+                    {
+
+                        if (byNumTouchesWas == 0)
+                        {
+                            // First contact has just appeared this frame
+                            PrepareRelMouseReport(eNewContact);
+                        }
+                        else
+                        {
+                            // Contact was present last frame
+                            PrepareRelMouseReport(ePreviousContact);
+                        }
+                    }
+                }
+            }
+#else
+#error "Define a mouse mode"
+#endif
         }
 
         u34_TCP_report[1] = 0x00;   // "consumes" the report so it isn't used again
+
     }
 }
 
