@@ -30,6 +30,7 @@
 #include "usbd_mouse.h"
 #include "usbd_mouse_if.h"
 #include "Mode_Control.h"
+#include "Flash_Control.h"
 /* USER CODE END INCLUDE */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -329,13 +330,17 @@ uint8_t * USBD_FS_InterfaceStrDescriptor(USBD_SpeedTypeDef speed, uint16_t *leng
 
     else if(interface_num == MOUSE_INTERFACE_NUM)   // this doesn't get called when not in a mouse mode!
     {
-        if(BridgeMode == PARALLEL_DIGITIZER)
+        if(BridgeMode == MODE_PARALLEL_DIGITIZER)
         {
             USBD_GetString((uint8_t *)USBD_INTERFACE_DIGITIZER_ON_STRING_FS, USBD_StrDesc, length);
         }
-        else if(BridgeMode == ABSOLUTE_MOUSE)
+        else if(BridgeMode == MODE_ABSOLUTE_MOUSE)
         {
             USBD_GetString((uint8_t *)USBD_INTERFACE_ABS_MOUSE_ON_STRING_FS, USBD_StrDesc, length);
+        }
+        else if(BridgeMode == MODE_RELATIVE_MOUSE)
+        {
+            USBD_GetString((uint8_t *)USBD_INTERFACE_REL_MOUSE_ON_STRING_FS, USBD_StrDesc, length);
         }
     }
 

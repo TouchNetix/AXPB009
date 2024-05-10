@@ -47,26 +47,29 @@
 #include "Mode_Control.h"
 
 /*============ Defines ============*/
-#define U41_REPORT              (0x41)
-#define MAX_NUM_CONTACTS        (5)
-#define TOUCH_NUMBER            (1)
+#define U41_REPORT                  (0x41)
+#define MAX_NUM_CONTACTS            (5)
+#define TOUCH_NUMBER                (1)
 
-#define CONFIDENCE              (0x04)
-#define TIP_SWITCH              (0x01)
-#define IN_RANGE                (0x02)
+#define CONFIDENCE                  (0x04)
+#define TIP_SWITCH                  (0x01)
+#define IN_RANGE                    (0x02)
 
-#define X_COORD_LSB             (2)
-#define X_COORD_MSB             (3)
-#define Y_COORD_LSB             (4)
-#define Y_COORD_MSB             (5)
-#define PRESSURE_LSB            (6)
-#define PRESSURE_MSB            (7)
+#define X_COORD_LSB                 (2)
+#define X_COORD_MSB                 (3)
+#define Y_COORD_LSB                 (4)
+#define Y_COORD_MSB                 (5)
+#define PRESSURE_LSB                (6)
+#define PRESSURE_MSB                (7)
 
-#define DO_NOT_IGNORE_COORDS    (0)
-#define IGNORE_COORDS           (1)
-#define BUTTON_PRESS            (0x02)
-#define BUTTON_RELEASE          (0x00)
-#define DATABYTES_PER_TOUCH     (7)
+#define REL_MOUSE_MAX_POS_CHANGE    (127)
+#define REL_MOUSE_MAX_NEG_CHANGE    (-127)
+
+#define DO_NOT_IGNORE_COORDS        (0)
+#define IGNORE_COORDS               (1)
+#define BUTTON_PRESS                (0x02)
+#define BUTTON_RELEASE              (0x00)
+#define DATABYTES_PER_TOUCH         (7)
 
 /*============ Compilation Flags ============*/
 //#define MOUSEMODE_ABSOLUTE
@@ -139,11 +142,12 @@ bool     boMouseEnabled                                     =  1;       // start
 uint8_t  wakeup_option                                      =  0;
 
 /*============ Local Function Prototypes ============*/
-static uint8_t GetXYZFromReport(bool boIgnoreCoords, uint8_t byTouchNum);
-static void    DecodeOneTouch(uint8_t byTouchToCheck, uint8_t *byStatus, uint8_t *wdXCoord, uint8_t *wdYCoord, uint8_t *byZAmplitude);
-static void    PrepareRelMouseReport(enum en_RelativeMouseEvents ContactEvent);
-static void    PrepareAbsMouseReport(void);
-static void    SendMouseRightClick(void);
+static uint8_t  GetXYZFromReport(bool boIgnoreCoords, uint8_t byTouchNum);
+static void     DecodeOneTouch(uint8_t byTouchToCheck, uint8_t *byStatus, uint8_t *wdXCoord, uint8_t *wdYCoord, uint8_t *byZAmplitude);
+static void     PrepareRelMouseReport(enum en_RelativeMouseEvents ContactEvent);
+static int8_t   ScaleRelMouseMovement(int32_t PreScaleDistance);
+static void     PrepareAbsMouseReport(void);
+static void     SendMouseRightClick(void);
 
 /*============ Local Functions ============*/
 
@@ -206,18 +210,13 @@ static void DecodeOneTouch(uint8_t byTouchToCheck, uint8_t *byStatus, uint8_t *w
 
 static void PrepareRelMouseReport(enum en_RelativeMouseEvents ContactEvent)
 {
-    // Need to keep track of where the mouse cursor is between frames and touch events
-    // Start off in the centre of the screen
-    static uint16_t CursorPositionX = 2047;
-    static uint16_t CursorPositionY = 2047;
-
     // Always need the previous frames touch coordinates
-    static uint16_t PreviousFrameX = 2047;
-    static uint16_t PreviousFrameY = 2047;
+    static uint16_t PreviousFrameX = 32767;
+    static uint16_t PreviousFrameY = 32767;
 
     // Get the coordinates from this frame
-    uint16_t ThisFrameX = DigitizerXCoord >> 4;
-    uint16_t ThisFrameY = DigitizerYCoord >> 4;
+    uint16_t ThisFrameX = DigitizerXCoord;
+    uint16_t ThisFrameY = DigitizerYCoord;
 
     // If it's a new contact (appeared this frame), update the previous coordinates to use
     // this position.
@@ -227,39 +226,32 @@ static void PrepareRelMouseReport(enum en_RelativeMouseEvents ContactEvent)
         PreviousFrameY = ThisFrameY;
     }
 
-    // Work out the new cursor coordinates
-    if (ThisFrameX > PreviousFrameX)
+    int8_t MovementX;
+    if (ThisFrameX == PreviousFrameX)
     {
-        CursorPositionX += (ThisFrameX - PreviousFrameX);
-        CursorPositionX = (CursorPositionX > 4095) ? 4095 : CursorPositionX;
+        MovementX = 0;
     }
     else
     {
-        CursorPositionX -= (PreviousFrameX - ThisFrameX);
-        CursorPositionX = (CursorPositionX > 4095) ? 4095 : CursorPositionX;
+        int32_t XDiff = (int32_t)ThisFrameX - (int32_t)PreviousFrameX;
+        MovementX = ScaleRelMouseMovement(XDiff);
     }
 
-    if (ThisFrameY > PreviousFrameY)
+    int8_t MovementY;
+    if (ThisFrameY == PreviousFrameY)
     {
-        CursorPositionY += (ThisFrameY - PreviousFrameY);
-        CursorPositionY = (CursorPositionY > 4095) ? 4095 : CursorPositionY;
+        MovementY = 0;
     }
     else
     {
-        CursorPositionY -= (PreviousFrameY - ThisFrameY);
-        CursorPositionY = (CursorPositionY > 4095) ? 4095 : CursorPositionY;
+        int32_t YDiff = (int32_t)ThisFrameY - (int32_t)PreviousFrameY;
+        MovementY = ScaleRelMouseMovement(YDiff);
     }
 
     // Populate the report
-    usb_hid_mouse_report_in[0] = (0xF8 | button_state);
-
-    // X coordinates
-    usb_hid_mouse_report_in[1] = CursorPositionX & 0xFF;
-    usb_hid_mouse_report_in[2] = (CursorPositionX >> 8) & 0xFF;
-
-    // Y coordinates
-    usb_hid_mouse_report_in[3] = CursorPositionY & 0xFF;
-    usb_hid_mouse_report_in[4] = (CursorPositionY >> 8) & 0xFF;
+    usb_hid_mouse_report_in[0] = button_state;
+    usb_hid_mouse_report_in[1] = MovementX;
+    usb_hid_mouse_report_in[2] = MovementY;
 
     // Flag that there is a report to send
     boMouseReportToSend = 1;
@@ -267,6 +259,68 @@ static void PrepareRelMouseReport(enum en_RelativeMouseEvents ContactEvent)
     // Finally, cache the touch coordinates from the previous frame
     PreviousFrameX = ThisFrameX;
     PreviousFrameY = ThisFrameY;
+}
+
+/*-----------------------------------------------------------*/
+
+static int8_t ScaleRelMouseMovement(int32_t PreScaleDistance)
+{
+
+    // Clamp between range of values that can be reported by a mouse (probably -127 to 127)
+    int16_t ClampedDistance = (PreScaleDistance > REL_MOUSE_MAX_POS_CHANGE) ?
+                                REL_MOUSE_MAX_POS_CHANGE :
+                                ((PreScaleDistance < REL_MOUSE_MAX_NEG_CHANGE) ? REL_MOUSE_MAX_NEG_CHANGE : (int8_t)PreScaleDistance);
+
+
+//    // ======= First Attempt =======
+//    // Pass clamped value to a quadratic equation of the form:
+//    //      y = -(x^3)/200000 + 3x/10
+//    // This makes the track-pad less sensitive
+//
+//    int32_t FirstTerm = ClampedDistance * ClampedDistance * ClampedDistance;
+//    FirstTerm /= 200000;
+//
+//    int16_t SecondTerm = 3 * ClampedDistance;
+//    SecondTerm /= 10;
+//
+//    ScaledDistance = ( - FirstTerm ) + SecondTerm;
+
+    // ======= Second Attempt =======
+    int32_t ScaledDistance = 0;
+
+    if (ClampedDistance > 5)
+    {
+        // y = -(x^2)/1000 + 3x/10 + 4
+        int32_t FirstTerm = ClampedDistance * ClampedDistance;
+        FirstTerm /= 1000;
+
+        int32_t SecondTerm = 3 * ClampedDistance;
+        SecondTerm /= 10;
+
+        int32_t ThirdTerm = 4;
+
+        ScaledDistance = ( - FirstTerm ) + SecondTerm + ThirdTerm;
+    }
+    else if (ClampedDistance < -5)
+    {
+        // y = (x^2)/1000 + 3x/10 - 4
+        int32_t FirstTerm = ClampedDistance * ClampedDistance;
+        FirstTerm /= 1000;
+
+        int32_t SecondTerm = 3 * ClampedDistance;
+        SecondTerm /= 10;
+
+        int32_t ThirdTerm = 4;
+
+        ScaledDistance = FirstTerm + SecondTerm - ThirdTerm;
+    }
+    else
+    {
+        // For small movements, a touch needs to move further for the same cursor movement (as when moving faster)
+        ScaledDistance = ClampedDistance;
+    }
+
+    return ((int8_t)ScaledDistance);
 }
 
 /*-----------------------------------------------------------*/
@@ -550,9 +604,9 @@ void MouseDigitizer(void)
 
             if (((byReportZ_lsb & 0x80) != 0x80)) // if z value is negative, reject the touch!
             {
-                if ((byNumTouchesIs < 2) && (byNumTouchesWas == 2))
+                if ((byNumTouchesIs > 1) && (byNumTouchesIs < 3))
                 {
-                    // Second contact removed, send a left click
+                    // Second contact appeared, send a left click
                     button_state = 1;
                 }
                 else

@@ -199,7 +199,7 @@ void Device_Init(void)
     HAL_GPIO_WritePin(LED_AXIOM_GPIO_Port, LED_AXIOM_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(LED_USB_GPIO_Port, LED_USB_Pin, GPIO_PIN_RESET);
 
-    if(BridgeMode == PARALLEL_DIGITIZER) // set comms parameters for device to work in digitizer mode (noone else to set these!)
+    if(BridgeMode == MODE_PARALLEL_DIGITIZER) // set comms parameters for device to work in digitizer mode (noone else to set these!)
     {
         HAL_TIM_Base_Start_IT(&htim16); // starts the timer used for digitizer timestamps
     }

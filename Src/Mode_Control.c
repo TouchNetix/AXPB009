@@ -39,6 +39,7 @@
 #include "usbd_mouse.h"
 #include "usbd_mouse_if.h"
 #include "Usage_Builder.h"
+#include "Flash_Control.h"
 
 /*============ Defines ============*/
 
@@ -60,7 +61,7 @@ bool InMouseOrDigitizerMode(void)
 {
     bool status = 0;
 
-    if(BridgeMode >= ABSOLUTE_MOUSE)
+    if(BridgeMode >= MODE_ABSOLUTE_MOUSE)
         status = true;
     else
         status = false;

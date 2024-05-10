@@ -49,6 +49,7 @@
 #include "Usage_Builder.h"
 #include "Mode_Control.h"
 #include "Timers_and_LEDs.h"
+#include "Flash_Control.h"
 
 /*============ TypeDefs ============*/
 
@@ -130,11 +131,15 @@ int main(void)
 
                 if(boMouseEnabled == true)  // only enable digitizer/mouse reports if we're in the correct mode!
                 {
-                    if(BridgeMode == PARALLEL_DIGITIZER) // check if we're in multipoint digitizer mode
+                    if(BridgeMode == MODE_PARALLEL_DIGITIZER) // check if we're in multipoint digitizer mode
                     {
                         MultiPointDigitizer();
                     }
-                    else if(BridgeMode == ABSOLUTE_MOUSE)
+                    else if(BridgeMode == MODE_ABSOLUTE_MOUSE)
+                    {
+                        MouseDigitizer();
+                    }
+                    else if(BridgeMode == MODE_RELATIVE_MOUSE)
                     {
                         MouseDigitizer();
                     }

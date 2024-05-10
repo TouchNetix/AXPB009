@@ -50,12 +50,13 @@
 /** @defgroup USBD_MOUSE_HID_Exported_Defines
   * @{
   */
-#define RELATIVE_MOUSE      (0)
-#define ABSOLUTE_MOUSE      (1)
-#define PARALLEL_DIGITIZER  (3)
+//#define ABSOLUTE_MOUSE      (1)
+//#define RELATIVE_MOUSE      (2)
+//#define PARALLEL_DIGITIZER  (3)
 
 #define MOUSE_PARALLEL_DIGITIZER_REPORT_LENGTH  (39)//34
 #define MOUSE_ABS_REPORT_LENGTH                 (5)
+#define MOUSE_REL_REPORT_LENGTH                 (3)
 
 #define USB_MOUSE_HID_CONFIG_DESC_SIZ           (41)
 #define USB_MOUSE_HID_DESC_SIZ                  (9)

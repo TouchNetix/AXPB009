@@ -54,6 +54,7 @@
 #include "usbd_composite.h"
 #include "Digitizer.h"
 #include "Mode_Control.h"
+#include "Flash_Control.h"
 
 /*============ Defines ============*/
 
@@ -113,7 +114,7 @@ void MatchReportDescriptorToMode(USBD_HandleTypeDef *pdev, uint8_t BridgeMode)
 {
     switch(BridgeMode)
     {
-        case ABSOLUTE_MOUSE:
+        case MODE_ABSOLUTE_MOUSE:
             /* report descriptor length */
             USBD_COMPOSITE_HID_CfgDesc[89] = USBD_MOUSE_ABS_REPORT_DESC_SIZE_LO; // LOBYTE
             USBD_COMPOSITE_HID_CfgDesc[90] = USBD_MOUSE_ABS_REPORT_DESC_SIZE_HI; // HIBYTE
@@ -126,7 +127,20 @@ void MatchReportDescriptorToMode(USBD_HandleTypeDef *pdev, uint8_t BridgeMode)
             ((USBD_MOUSE_HID_ItfTypeDef *)pdev->pClassSpecificInterfaceMOUSE)->pReport = mouse_abs_ReportDesc_FS;
             break;
 
-        case PARALLEL_DIGITIZER:
+        case MODE_RELATIVE_MOUSE:
+            /* report descriptor length */
+            USBD_COMPOSITE_HID_CfgDesc[89] = USBD_MOUSE_REL_REPORT_DESC_SIZE_LO; // LOBYTE
+            USBD_COMPOSITE_HID_CfgDesc[90] = USBD_MOUSE_REL_REPORT_DESC_SIZE_HI; // HIBYTE
+
+            /* report size */
+            USBD_COMPOSITE_HID_CfgDesc[95] = LOBYTE(MOUSE_REL_REPORT_LENGTH); // LOBYTE
+            USBD_COMPOSITE_HID_CfgDesc[96] = HIBYTE(MOUSE_REL_REPORT_LENGTH); // HIBYTE
+
+            /* point to correct descriptor */
+            ((USBD_MOUSE_HID_ItfTypeDef *)pdev->pClassSpecificInterfaceMOUSE)->pReport = mouse_rel_ReportDesc_FS;
+            break;
+
+        case MODE_PARALLEL_DIGITIZER:
             /* report descriptor length */
             USBD_COMPOSITE_HID_CfgDesc[89] = USBD_MOUSE_PAR_DIGITIZER_DESC_SIZE_LO; // LOBYTE
             USBD_COMPOSITE_HID_CfgDesc[90] = USBD_MOUSE_PAR_DIGITIZER_DESC_SIZE_HI; // HIBYTE
@@ -160,11 +174,15 @@ void GetMouseDescriptorLength(uint8_t BridgeMode)
 
     switch(BridgeMode)
     {
-        case ABSOLUTE_MOUSE:
+        case MODE_ABSOLUTE_MOUSE:
             byMouseReportLength = MOUSE_ABS_REPORT_LENGTH;
             break;
 
-        case PARALLEL_DIGITIZER:
+        case MODE_RELATIVE_MOUSE:
+            byMouseReportLength = MOUSE_REL_REPORT_LENGTH;
+            break;
+
+        case MODE_PARALLEL_DIGITIZER:
             byMouseReportLength = MOUSE_PARALLEL_DIGITIZER_REPORT_LENGTH;
             break;
 
@@ -177,7 +195,7 @@ void GetMouseDescriptorLength(uint8_t BridgeMode)
 // CUSTOMISED - alters the number of interfaces presented to host --> enables/disables the mouse interface
 void ConfigureCfgDescriptor(uint8_t MousMode)
 {
-    if(BridgeMode == ABSOLUTE_MOUSE || BridgeMode == PARALLEL_DIGITIZER)  // mouse/digitizer enabled
+    if(BridgeMode == MODE_ABSOLUTE_MOUSE || BridgeMode == MODE_RELATIVE_MOUSE || BridgeMode == MODE_PARALLEL_DIGITIZER)  // mouse/digitizer enabled
     {
         boMouseEnabled = true;
         NumInterfaces = 3;
@@ -194,12 +212,17 @@ void ConfigurePID(uint8_t BridgeMode)
 {
     switch(BridgeMode)
     {
-        case ABSOLUTE_MOUSE:
+        case MODE_ABSOLUTE_MOUSE:
             USBD_FS_DeviceDesc[10] = LOBYTE(DEVICE_MODE_PID_ABSOLUTE_MOUSE); // LOBYTE
             USBD_FS_DeviceDesc[11] = HIBYTE(DEVICE_MODE_PID_ABSOLUTE_MOUSE); // HIBYTE
             break;
 
-        case PARALLEL_DIGITIZER:
+        case MODE_RELATIVE_MOUSE:
+            USBD_FS_DeviceDesc[10] = LOBYTE(DEVICE_MODE_PID_RELATIVE_MOUSE); // LOBYTE
+            USBD_FS_DeviceDesc[11] = HIBYTE(DEVICE_MODE_PID_RELATIVE_MOUSE); // HIBYTE
+            break;
+
+        case MODE_PARALLEL_DIGITIZER:
             USBD_FS_DeviceDesc[10] = LOBYTE(DEVICE_MODE_PID_PARALLEL_DIGITIZER); // LOBYTE
             USBD_FS_DeviceDesc[11] = HIBYTE(DEVICE_MODE_PID_PARALLEL_DIGITIZER); // HIBYTE
             break;

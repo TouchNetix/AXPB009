@@ -250,8 +250,8 @@ uint8_t GetDeviceModeFromFlash(void)
     if(BridgeMode_temp_comp == BridgeMode_Complement)
     {
         // no flash errors
-        // make sure the bridge is in a known mode, if not then put it into basic mode
-        if((BridgeMode_temp != MODE_TBP_BASIC) && (BridgeMode_temp != MODE_ABSOLUTE_MOUSE) && (BridgeMode_temp != MODE_PARALLEL_DIGITIZER))
+        // make sure the bridge is in a known mode, if not then put it into digitizer mode
+        if((BridgeMode_temp != MODE_TBP_BASIC) && (BridgeMode_temp != MODE_ABSOLUTE_MOUSE) && (BridgeMode_temp != MODE_RELATIVE_MOUSE) && (BridgeMode_temp != MODE_PARALLEL_DIGITIZER))
         {
             HAL_DeInit();
             Store_BridgeMode_To_Flash(MODE_PARALLEL_DIGITIZER);
