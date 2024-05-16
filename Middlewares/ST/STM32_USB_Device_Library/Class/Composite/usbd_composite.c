@@ -85,7 +85,9 @@ static uint8_t  *USBD_COMPOSITE_HID_GetDeviceQualifierDesc (uint16_t *length);
 static uint8_t  USBD_COMPOSITE_HID_DataIn (USBD_HandleTypeDef *pdev, uint8_t epnum);
 
 static uint8_t  USBD_COMPOSITE_HID_DataOut (USBD_HandleTypeDef *pdev, uint8_t epnum);
+
 static uint8_t  USBD_COMPOSITE_HID_EP0_RxReady (USBD_HandleTypeDef  *pdev);
+
 /**
   * @}
   */
@@ -416,7 +418,7 @@ static uint8_t  USBD_COMPOSITE_HID_DataIn (USBD_HandleTypeDef *pdev,
   * @retval status
   */
 static uint8_t  USBD_COMPOSITE_HID_DataOut (USBD_HandleTypeDef *pdev,
-                              uint8_t epnum)
+                                          uint8_t epnum)
 {
     /* identify which interface host is talking to */
     if(epnum == GENERIC_EPOUT_IDX)

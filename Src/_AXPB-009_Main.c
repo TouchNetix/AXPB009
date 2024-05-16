@@ -135,14 +135,14 @@ int main(void)
                     {
                         MultiPointDigitizer();
                     }
-                    else if(BridgeMode == MODE_ABSOLUTE_MOUSE)
-                    {
-                        MouseDigitizer();
-                    }
-                    else if(BridgeMode == MODE_RELATIVE_MOUSE)
-                    {
-                        MouseDigitizer();
-                    }
+//                    else if(BridgeMode == MODE_ABSOLUTE_MOUSE)
+//                    {
+//                        MouseDigitizer();
+//                    }
+//                    else if(BridgeMode == MODE_RELATIVE_MOUSE)
+//                    {
+//                        MouseDigitizer();
+//                    }
                 }
 
                 // press endpoint is always active so this is always executed

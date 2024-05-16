@@ -44,6 +44,9 @@
 static int8_t MOUSE_HID_Init_FS(void);
 static int8_t MOUSE_HID_DeInit_FS(void);
 static int8_t MOUSE_HID_OutEvent_FS(uint8_t* state);
+static int8_t MOUSE_HID_SetFeature_FS(uint8_t event_idx, uint8_t* buffer);
+static int8_t MOUSE_HID_GetFeature_FS(uint8_t event_idx, uint8_t* buffer, uint16_t* length);
+static uint16_t MOUSE_HID_FeatureReportLength_FS(uint8_t event_idx);
 
 /*============ Exported Variables ============*/
 bool    boMouseReportToSend = 0;
@@ -87,32 +90,144 @@ __ALIGN_BEGIN uint8_t mouse_abs_ReportDesc_FS[USBD_MOUSE_ABS_REPORT_DESC_SIZE] _
 /* USB Mouse HID Report Descriptor - Relative mouse mode */
 __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_MOUSE_REL_REPORT_DESC_SIZE] __ALIGN_END =
 {
-        0x05, 0x01, // Usage Page (Generic Desktop),
-        0x09, 0x02, // Usage (Mouse),
-        0xA1, 0x01, //  Collection (Application),
-        0x09, 0x01, //   Usage (Pointer),
-        0xA1, 0x00, //  Collection (Physical),
-        0x05, 0x09, //     Usage Page (Button),
-        0x19, 0x01, //     Usage Minimum (01),                  3 buttons for left-click, right-click and middle-click.
-        0x29, 0x03, //     Usage Maximum (03),
-        0x15, 0x00, //     Logical Minimum (0),                 Each button can be in state 0 or 1.
-        0x25, 0x01, //     Logical Maximum (1),
-        0x75, 0x01, //     Report Size (1),                     Each button represented by a single bit,
-        0x95, 0x03, //     Report Count (3),                    which is repeated 3 times (one bit for each button).
-        0x81, 0x02, //     Input (Data, Variable, Absolute)
-        0x75, 0x05, //     Report Size (5),                     5 bits of padding to reach a full byte,
-        0x95, 0x01, //     Report Count (1),                    which is repeated once.
-        0x81, 0x01, //     Input (Constant),                    Mark the padding as constant (i.e. ignore them).
-        0x05, 0x01, //     Usage Page (Generic Desktop),
-        0x09, 0x30, //     Usage (X),
-        0x09, 0x31, //     Usage (Y),
-        0x15, 0x81, //     Logical Minimum (-127),              X and Y can send values between -127 and 127.
-        0x25, 0x7F, //     Logical Maximum (127),
-        0x75, 0x08, //     Report Size (8),                     Values sent is represented in a byte,
-        0x95, 0x02, //     Report Count (2),                    1 byte each for X and Y.
-        0x81, 0x06, //     Input (Data, Variable, Relative)     The values are relative to the previous report (i.e. host remembers cursor position)
-        0xC0,       //  End Collection,
-        0xC0,       // End Collection
+// TOUCHPAD
+    0x05, 0x0D,                         // USAGE_PAGE (Digitizers)
+    0x09, 0x05,                         // USAGE (Touch Pad)
+    0xA1, 0x01,                         // COLLECTION (Application)
+    0x85, REPORT_TOUCHPAD,              //   REPORT_ID (Touch pad)
+    0x09, 0x22,                         //   USAGE (Finger)
+    0xA1, 0x02,                         //   COLLECTION (Logical)
+    0x15, 0x00,                         //     LOGICAL_MINIMUM (0)
+    0x25, 0x01,                         //     LOGICAL_MAXIMUM (1)
+    0x09, 0x47,                         //     USAGE (Confidence)
+    0x09, 0x42,                         //     USAGE (Tip switch)
+    0x95, 0x02,                         //     REPORT_COUNT (2)
+    0x75, 0x01,                         //     REPORT_SIZE (1)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0x95, 0x01,                         //     REPORT_COUNT (1)
+    0x75, 0x02,                         //     REPORT_SIZE (2)
+    0x25, 0x02,                         //     LOGICAL_MAXIMUM (2)
+    0x09, 0x51,                         //     USAGE (Contact Identifier)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0x75, 0x01,                         //     REPORT_SIZE (1)
+    0x95, 0x04,                         //     REPORT_COUNT (4)
+    0x81, 0x03,                         //     INPUT (Cnst,Var,Abs)
+    0x05, 0x01,                         //     USAGE_PAGE (Generic Desk..
+    0x15, 0x00,                         //     LOGICAL_MINIMUM (0)
+    0x26, 0xFF, 0x0F,                   //     LOGICAL_MAXIMUM (4095)
+    0x75, 0x10,                         //     REPORT_SIZE (16)
+    0x55, 0x0E,                         //     UNIT_EXPONENT (-2)
+    0x65, 0x13,                         //     UNIT(Inch,EngLinear)
+    0x09, 0x30,                         //     USAGE (X)
+    0x35, 0x00,                         //     PHYSICAL_MINIMUM (0)
+    0x46, 0x90, 0x01,                   //     PHYSICAL_MAXIMUM (400)
+    0x95, 0x01,                         //     REPORT_COUNT (1)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0x46, 0x13, 0x01,                   //     PHYSICAL_MAXIMUM (275)
+    0x09, 0x31,                         //     USAGE (Y)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0xC0,                               //   END_COLLECTION
+    0x55, 0x0C,                         //   UNIT_EXPONENT (-4)
+    0x66, 0x01, 0x10,                   //   UNIT (Seconds)
+    0x47, 0xFF, 0xFF, 0x00, 0x00,       //   PHYSICAL_MAXIMUM (65535)
+    0x27, 0xFF, 0xFF, 0x00, 0x00,       //   LOGICAL_MAXIMUM (65535)
+    0x75, 0x10,                         //   REPORT_SIZE (16)
+    0x95, 0x01,                         //   REPORT_COUNT (1)
+    0x05, 0x0D,                         //   USAGE_PAGE (Digitizers)
+    0x09, 0x56,                         //   USAGE (Scan Time)
+    0x81, 0x02,                         //   INPUT (Data,Var,Abs)
+    0x09, 0x54,                         //   USAGE (Contact count)
+    0x25, 0x7F,                         //   LOGICAL_MAXIMUM (127)
+    0x95, 0x01,                         //   REPORT_COUNT (1)
+    0x75, 0x08,                         //   REPORT_SIZE (8)
+    0x81, 0x02,                         //   INPUT (Data,Var,Abs)
+    0x05, 0x09,                         //   USAGE_PAGE (Button)
+    0x09, 0x01,                         //   USAGE_(Button 1)
+    0x09, 0x02,                         //   USAGE_(Button 2)
+    0x09, 0x03,                         //   USAGE_(Button 3)
+    0x25, 0x01,                         //   LOGICAL_MAXIMUM (1)
+    0x75, 0x01,                         //   REPORT_SIZE (1)
+    0x95, 0x03,                         //   REPORT_COUNT (3)
+    0x81, 0x02,                         //   INPUT (Data,Var,Abs)
+    0x95, 0x05,                         //   REPORT_COUNT (5)
+    0x81, 0x03,                         //   INPUT (Cnst,Var,Abs)
+
+// FEATURE REPORTS
+    0x05, 0x0d,                         //   USAGE_PAGE (Digitizer)
+    0x85, REPORT_FEATURE_MAXCT,         //   REPORT_ID (Feature MAX COUNT)
+    0x09, 0x55,                         //   USAGE (Contact Count Maximum)
+    0x09, 0x59,                         //   USAGE (Pad TYpe)
+    0x75, 0x08,                         //   REPORT_SIZE (8)
+    0x95, 0x01,                         //   REPORT_COUNT (1)
+    0x25, 0x05,                         //   LOGICAL_MAXIMUM (5)
+    0xB1, 0x02,                         //   FEATURE (Data,Var,Abs)
+
+    0x06, 0x00, 0xFF,                   //   USAGE_PAGE (Vendor Defined)
+    0x85, REPORT_FEATURE_PTPHQABLOB,    //   REPORT_ID (PTPHQA)
+    0x09, 0xC5,                         //   USAGE (Vendor Usage 0xC5)
+    0x15, 0x00,                         //   LOGICAL_MINIMUM (0)
+    0x26, 0xFF, 0x00,                   //   LOGICAL_MAXIMUM (0xff)
+    0x75, 0x08,                         //   REPORT_SIZE (8)
+    0x96, 0x00, 0x01,                   //   REPORT_COUNT (0x100 (256))
+    0xB1, 0x02,                         //   FEATURE (Data,Var,Abs)
+    0xC0,                               // END_COLLECTION
+
+    0x05, 0x0D,                         // USAGE_PAGE (Digitizer)
+    0x09, 0x0E,                         // USAGE (Configuration)
+    0xA1, 0x01,                         // COLLECTION (Application)
+    0x85, REPORT_FEATURE_CFG,           //   REPORT_ID (Feature CONFIGURATION)
+    0x09, 0x22,                         //   USAGE (Finger)
+    0xA1, 0x02,                         //   COLLECTION (logical)
+    0x09, 0x52,                         //     USAGE (Input Mode)
+    0x15, 0x00,                         //     LOGICAL_MINIMUM (0)
+    0x25, 0x0A,                         //     LOGICAL_MAXIMUM (10)
+    0x75, 0x08,                         //     REPORT_SIZE (8)
+    0x95, 0x01,                         //     REPORT_COUNT (1)
+    0xB1, 0x02,                         //     FEATURE (Data,Var,Abs
+    0xC0,                               //   END_COLLECTION
+
+    0x09, 0x22,                         //   USAGE (Finger)
+    0xA1, 0x00,                         //   COLLECTION (physical)
+    0x85, REPORT_FEATURE_FUNCTIONSWITCH,//     REPORT_ID (Feature FUNCTION SWITCH)
+    0x09, 0x57,                         //     USAGE(Surface switch)
+    0x09, 0x58,                         //     USAGE(Button switch)
+    0x75, 0x01,                         //     REPORT_SIZE (1)
+    0x95, 0x02,                         //     REPORT_COUNT (2)
+    0x25, 0x01,                         //     LOGICAL_MAXIMUM (1)
+    0xb1, 0x02,                         //     FEATURE (Data,Var,Abs)
+    0x95, 0x06,                         //     REPORT_COUNT (6)
+    0xB1, 0x03,                         //     FEATURE (Cnst,Var,Abs)
+    0xC0,                               //   END_COLLECTION
+    0xC0,                               // END_COLLECTION
+
+// MOUSE
+    0x05, 0x01,                         // Usage Page (Generic Desktop),
+    0x09, 0x02,                         // Usage (Mouse),
+    0xA1, 0x01,                         // Collection (Application),
+    0x85, REPORT_REL_MOUSE,             //   Report ID (Mouse)
+    0x09, 0x01,                         //   Usage (Pointer),
+    0xA1, 0x00,                         //   Collection (Physical),
+    0x05, 0x09,                         //     Usage Page (Button),
+    0x19, 0x01,                         //     Usage Minimum (01),                  3 buttons for left-click, right-click and middle-click.
+    0x29, 0x03,                         //     Usage Maximum (03),
+    0x15, 0x00,                         //     Logical Minimum (0),                 Each button can be in state 0 or 1.
+    0x25, 0x01,                         //     Logical Maximum (1),
+    0x75, 0x01,                         //     Report Size (1),                     Each button represented by a single bit,
+    0x95, 0x03,                         //     Report Count (3),                    which is repeated 3 times (one bit for each button).
+    0x81, 0x02,                         //     Input (Data, Variable, Absolute)
+    0x75, 0x05,                         //     Report Size (5),                     5 bits of padding to reach a full byte,
+    0x95, 0x01,                         //     Report Count (1),                    which is repeated once.
+    0x81, 0x01,                         //     Input (Constant),                    Mark the padding as constant (i.e. ignore them).
+    0x05, 0x01,                         //     Usage Page (Generic Desktop),
+    0x09, 0x30,                         //     Usage (X),
+    0x09, 0x31,                         //     Usage (Y),
+    0x15, 0x81,                         //     Logical Minimum (-127),              X and Y can send values between -127 and 127.
+    0x25, 0x7F,                         //     Logical Maximum (127),
+    0x75, 0x08,                         //     Report Size (8),                     Values sent is represented in a byte,
+    0x95, 0x02,                         //     Report Count (2),                    1 byte each for X and Y.
+    0x81, 0x06,                         //     Input (Data, Variable, Relative)     The values are relative to the previous report (i.e. host remembers cursor position)
+    0xC0,                               //   End Collection,
+    0xC0,                               // End Collection
 };
 
 /* USB Mouse HID Report Descriptor - Parallel Digitizer mode */
@@ -382,7 +497,6 @@ __ALIGN_BEGIN uint8_t mouse_parallel_digitizer_ReportDesc_FS[USBD_MOUSE_PAR_DIGI
     0x09, 0x56,                         //    USAGE (Scan Time)
     0x81, 0x02,                         //    INPUT (Data,Var,Abs)
 
-
     // Contact Count */
     0x05u, 0x0Du,                         // USAGE_PAGE (Digitizers) */
     0x15u, 0x00u,                         // LOGICAL_MINIMUM (0) */
@@ -407,13 +521,37 @@ __ALIGN_BEGIN uint8_t mouse_parallel_digitizer_ReportDesc_FS[USBD_MOUSE_PAR_DIGI
     0xC0u,                               // END_COLLECTION */
 };
 
+// A generic certification 'blob' from MicroSoft, for development purposes
+__ALIGN_BEGIN uint8_t hid_THQL_digital_blob[USBHID_THQL_BLOB_SIZE] __ALIGN_END =
+{
+    REPORT_FEATURE_PTPHQABLOB,
+    0xfc, 0x28, 0xfe, 0x84, 0x40, 0xcb, 0x9a, 0x87, 0x0d, 0xbe, 0x57, 0x3c, 0xb6, 0x70, 0x09, 0x88,
+    0x07, 0x97, 0x2d, 0x2b, 0xe3, 0x38, 0x34, 0xb6, 0x6c, 0xed, 0xb0, 0xf7, 0xe5, 0x9c, 0xf6, 0xc2,
+    0x2e, 0x84, 0x1b, 0xe8, 0xb4, 0x51, 0x78, 0x43, 0x1f, 0x28, 0x4b, 0x7c, 0x2d, 0x53, 0xaf, 0xfc,
+    0x47, 0x70, 0x1b, 0x59, 0x6f, 0x74, 0x43, 0xc4, 0xf3, 0x47, 0x18, 0x53, 0x1a, 0xa2, 0xa1, 0x71,
+    0xc7, 0x95, 0x0e, 0x31, 0x55, 0x21, 0xd3, 0xb5, 0x1e, 0xe9, 0x0c, 0xba, 0xec, 0xb8, 0x89, 0x19,
+    0x3e, 0xb3, 0xaf, 0x75, 0x81, 0x9d, 0x53, 0xb9, 0x41, 0x57, 0xf4, 0x6d, 0x39, 0x25, 0x29, 0x7c,
+    0x87, 0xd9, 0xb4, 0x98, 0x45, 0x7d, 0xa7, 0x26, 0x9c, 0x65, 0x3b, 0x85, 0x68, 0x89, 0xd7, 0x3b,
+    0xbd, 0xff, 0x14, 0x67, 0xf2, 0x2b, 0xf0, 0x2a, 0x41, 0x54, 0xf0, 0xfd, 0x2c, 0x66, 0x7c, 0xf8,
+    0xc0, 0x8f, 0x33, 0x13, 0x03, 0xf1, 0xd3, 0xc1, 0x0b, 0x89, 0xd9, 0x1b, 0x62, 0xcd, 0x51, 0xb7,
+    0x80, 0xb8, 0xaf, 0x3a, 0x10, 0xc1, 0x8a, 0x5b, 0xe8, 0x8a, 0x56, 0xf0, 0x8c, 0xaa, 0xfa, 0x35,
+    0xe9, 0x42, 0xc4, 0xd8, 0x55, 0xc3, 0x38, 0xcc, 0x2b, 0x53, 0x5c, 0x69, 0x52, 0xd5, 0xc8, 0x73,
+    0x02, 0x38, 0x7c, 0x73, 0xb6, 0x41, 0xe7, 0xff, 0x05, 0xd8, 0x2b, 0x79, 0x9a, 0xe2, 0x34, 0x60,
+    0x8f, 0xa3, 0x32, 0x1f, 0x09, 0x78, 0x62, 0xbc, 0x80, 0xe3, 0x0f, 0xbd, 0x65, 0x20, 0x08, 0x13,
+    0xc1, 0xe2, 0xee, 0x53, 0x2d, 0x86, 0x7e, 0xa7, 0x5a, 0xc5, 0xd3, 0x7d, 0x98, 0xbe, 0x31, 0x48,
+    0x1f, 0xfb, 0xda, 0xaf, 0xa2, 0xa8, 0x6a, 0x89, 0xd6, 0xbf, 0xf2, 0xd3, 0x32, 0x2a, 0x9a, 0xe4,
+    0xcf, 0x17, 0xb7, 0xb8, 0xf4, 0xe1, 0x33, 0x08, 0x24, 0x8b, 0xc4, 0x43, 0xa5, 0xe5, 0x24, 0xc2,
+};
+
 /*============ Typedefs ============*/
 USBD_MOUSE_HID_ItfTypeDef USBD_MouseHID_fops_FS =
 {
   NULL, // to be populated by MatchReportDescriptorSizeToMode() during initialisation
   MOUSE_HID_Init_FS,
   MOUSE_HID_DeInit_FS,
-  MOUSE_HID_OutEvent_FS
+  MOUSE_HID_OutEvent_FS,
+  MOUSE_HID_SetFeature_FS,
+  MOUSE_HID_GetFeature_FS,
 };
 
 /*============ Functions ============*/
@@ -451,5 +589,49 @@ static int8_t MOUSE_HID_OutEvent_FS(uint8_t* state)
     return (USBD_OK);
 }
 
+/**
+ * @brief  MOUSE_HID_SetFeature_FS
+ *         Manage the MOUSE HID SetFeature request.
+ *         Host -> Device
+ * @param  event_idx: Report Number
+ * @param  buffer: Received Data
+ * @retval USBD_OK
+ */
+uint8_t test = 0;
+static int8_t MOUSE_HID_SetFeature_FS(uint8_t event_idx, uint8_t* buffer)
+{
+    test ^= 1;
+    return (USBD_OK);
+}
+
+/**
+ * @brief  MOUSE_HID_GetFeature_FS
+ *         Manage the MOUSE HID GetFeature request.
+ *         Device -> Host
+ * @param  event_idx: Requested Report Number
+ * @param  buffer: Data to transmit including ReportID
+ * @param  length: Length of the buffer
+ * @retval length: Number of bytes to send
+ * @retval USBD_OK
+ */
+static int8_t MOUSE_HID_GetFeature_FS(uint8_t event_idx, uint8_t* pBuffer, uint16_t* length)
+{
+    // clear transmission data array
+    memset(pBuffer, 0x00, *length);
+
+    switch(event_idx)
+    {
+        case REPORT_FEATURE_MAXCT:
+            pBuffer[0] = 0x05;
+            *length = sizeof(uint8_t);
+            break;
+
+        default: /* Report does not exist */
+            return (USBD_FAIL);
+            break;
+    }
+
+    return (USBD_OK);
+}
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
 

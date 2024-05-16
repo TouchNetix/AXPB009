@@ -251,9 +251,10 @@ static void PrepareRelMouseReport(enum en_RelativeMouseEvents ContactEvent)
     AxisY.CursorHasMovedThisFrame = (MovementY != 0) ? true : false;
 
     // Populate the report
-    usb_hid_mouse_report_in[0] = button_state;
-    usb_hid_mouse_report_in[1] = MovementX;
-    usb_hid_mouse_report_in[2] = MovementY;
+    usb_hid_mouse_report_in[0] = REPORT_REL_MOUSE;
+    usb_hid_mouse_report_in[1] = button_state;
+    usb_hid_mouse_report_in[2] = MovementX;
+    usb_hid_mouse_report_in[3] = MovementY;
 
     // Finally, cache the touch coordinates from the previous frame
     PreviousFrameX = ThisFrameX;

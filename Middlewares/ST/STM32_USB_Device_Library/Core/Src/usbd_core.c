@@ -318,7 +318,7 @@ USBD_StatusTypeDef USBD_LL_DataOutStage(USBD_HandleTypeDef *pdev , uint8_t epnum
         if((pdev->pClass->EP0_RxReady != NULL)&&
            (pdev->dev_state == USBD_STATE_CONFIGURED))
         {
-          pdev->pClass->EP0_RxReady(pdev); 
+          pdev->pClass->EP0_RxReady(pdev);
         }
         USBD_CtlSendStatus(pdev);
       }

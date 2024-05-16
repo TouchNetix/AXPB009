@@ -54,9 +54,9 @@
 //#define RELATIVE_MOUSE      (2)
 //#define PARALLEL_DIGITIZER  (3)
 
-#define MOUSE_PARALLEL_DIGITIZER_REPORT_LENGTH  (39)//34
+#define MOUSE_PARALLEL_DIGITIZER_REPORT_LENGTH  (39)
 #define MOUSE_ABS_REPORT_LENGTH                 (5)
-#define MOUSE_REL_REPORT_LENGTH                 (3)
+#define MOUSE_REL_REPORT_LENGTH                 (4)
 
 #define USB_MOUSE_HID_CONFIG_DESC_SIZ           (41)
 #define USB_MOUSE_HID_DESC_SIZ                  (9)
@@ -94,6 +94,8 @@ typedef struct _USBD_MOUSE_HID_Itf
   int8_t (* Init)          (void);
   int8_t (* DeInit)        (void);
   int8_t (* OutEvent)      (uint8_t*);
+  int8_t (* SetFeature)    (uint8_t, uint8_t*);
+  int8_t (* GetFeature)    (uint8_t, uint8_t*, uint16_t*);
 
 }USBD_MOUSE_HID_ItfTypeDef;
 

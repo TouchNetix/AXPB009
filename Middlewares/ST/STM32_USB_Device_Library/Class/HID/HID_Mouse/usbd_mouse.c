@@ -57,6 +57,9 @@
 #include "Flash_Control.h"
 
 /*============ Defines ============*/
+#define HID_INPUT       (1U)
+#define HID_OUTPUT      (2U)
+#define HID_FEATURE     (3U)
 
 /*============ Local Function Prototypes ============*/
 
@@ -308,52 +311,77 @@ uint8_t  USBD_MOUSE_HID_Setup (USBD_HandleTypeDef *pdev,
   uint16_t len = 0;
   uint8_t  *pbuf = NULL;
   USBD_MOUSE_HID_HandleTypeDef     *hhid = (USBD_MOUSE_HID_HandleTypeDef*)pdev->pClassDataMOUSE;
+  uint8_t buffer[USBD_MOUSE_HID_REPORT_IN_SIZE];
+  int8_t state;
 
   switch (req->bmRequest & USB_REQ_TYPE_MASK)
   {
-  case USB_REQ_TYPE_CLASS :
-    switch (req->bRequest)
-    {
+      case USB_REQ_TYPE_CLASS :
+          switch (req->bRequest)
+          {
 
 
-    case MOUSE_HID_REQ_SET_PROTOCOL:
-      hhid->Protocol = (uint8_t)(req->wValue);
-      break;
+          case MOUSE_HID_REQ_SET_PROTOCOL:
+            hhid->Protocol = (uint8_t)(req->wValue);
+            break;
 
-    case MOUSE_HID_REQ_GET_PROTOCOL:
-      USBD_CtlSendData (pdev,
-                        (uint8_t *)&hhid->Protocol,
-                        1);
-      break;
+          case MOUSE_HID_REQ_GET_PROTOCOL:
+            USBD_CtlSendData (pdev,
+                              (uint8_t *)&hhid->Protocol,
+                              1);
+            break;
 
-    case MOUSE_HID_REQ_SET_IDLE:
-      hhid->IdleState = (uint8_t)(req->wValue >> 8);
-      break;
+          case MOUSE_HID_REQ_SET_IDLE:
+            hhid->IdleState = (uint8_t)(req->wValue >> 8);
+            break;
 
-    case MOUSE_HID_REQ_GET_IDLE:
-      USBD_CtlSendData (pdev,
-                        (uint8_t *)&hhid->IdleState,
-                        1);
-      break;
+          case MOUSE_HID_REQ_GET_IDLE:
+            USBD_CtlSendData (pdev,
+                              (uint8_t *)&hhid->IdleState,
+                              1);
+            break;
 
-    case MOUSE_HID_REQ_SET_REPORT:
-      hhid->IsReportAvailable = 1;
-      USBD_CtlPrepareRx (pdev, hhid->Report_buf, (uint8_t)(req->wLength));
-      break;
+// ============ CUSTOMISED BEGIN ============
+          case MOUSE_HID_REQ_SET_REPORT:
+              hhid->IsReportAvailable = 1;
+              USBD_CtlPrepareRx (pdev, hhid->Report_buf, (uint8_t)(req->wLength));
+              // Think the data from here gets sent to the control endpoint (0) rather than being directed to
+              // this interface.
+              break;
 
-// CUSTOMISED BEGIN - this isn't included by default (WHY ST??)
-    case MOUSE_HID_REQ_GET_REPORT:
-        u34_TCP_report[0] = 0x02u;  // report ID
-        u34_TCP_report[1] = 0x05u;  // max no. contacts
-        USBD_CtlSendData(pdev, u34_TCP_report, req->wLength);
-        break;
-// CUSTOMISED END
+          case MOUSE_HID_REQ_GET_REPORT:
+              len = sizeof(buffer) - 1;
+              state = ((USBD_MOUSE_HID_ItfTypeDef *)pdev->pClassSpecificInterfaceMOUSE)->GetFeature(req->wValue & 0xff,
+                                                                                                      &buffer[1],
+                                                                                                      &len);
+              if(state == USBD_OK)
+              {
+                 // Copy ReportID and adjust length as ID must also be considered
+                 buffer[0] = req->wValue & 0xff;
+                 len++;
 
-    default:
-      USBD_CtlError (pdev, req);
-      return USBD_FAIL;
-    }
-    break;
+                 // Length MUST NOT be bigger than USBD_CUSTOMHID_INREPORT_BUF_SIZE
+                 if(len > USBD_MOUSE_HID_REPORT_IN_SIZE)
+                 {
+                    len = USBD_MOUSE_HID_REPORT_IN_SIZE;
+                 }
+                 USBD_CtlSendData (pdev,
+                                   buffer,
+                                   len);
+              }
+              else
+              {
+                 USBD_CtlError (pdev, req);
+                 return USBD_FAIL;
+              }
+              break;
+// ============ CUSTOMISED END ============
+
+          default:
+            USBD_CtlError (pdev, req);
+            return USBD_FAIL;
+          }
+          break;
 
   case USB_REQ_TYPE_STANDARD:
     switch (req->bRequest)
@@ -373,10 +401,8 @@ uint8_t  USBD_MOUSE_HID_Setup (USBD_HandleTypeDef *pdev,
           uint16_t MouseReportDescSize = (DescSize_HiByte << 8) | (DescSize_LoByte); // concatenates the low and bytes into a 16 bit value
 
           len = MIN(MouseReportDescSize , req->wLength);
-          //len = MIN(USBD_MOUSE_REL_REPORT_DESC_SIZE , req->wLength);
           pbuf =  ((USBD_MOUSE_HID_ItfTypeDef *)pdev->pClassSpecificInterfaceMOUSE)->pReport;
       }
-
       else if( req->wValue >> 8 == MOUSE_HID_DESCRIPTOR_TYPE)
       {
         pbuf = USBD_MOUSE_HID_Desc;
@@ -478,7 +504,9 @@ uint8_t USBD_MOUSE_HID_EP0_RxReady(USBD_HandleTypeDef *pdev)
 
   if (hhid->IsReportAvailable == 1)
   {
-    ((USBD_MOUSE_HID_ItfTypeDef *)pdev->pClassSpecificInterfaceMOUSE)->OutEvent(hhid->Report_buf);
+//    ((USBD_MOUSE_HID_ItfTypeDef *)pdev->pClassSpecificInterfaceMOUSE)->OutEvent(hhid->Report_buf);
+      ((USBD_MOUSE_HID_ItfTypeDef *)pdev->pClassSpecificInterfaceMOUSE)->SetFeature(hhid->Report_buf[0],
+                                                                                  &hhid->Report_buf[1]);
     hhid->IsReportAvailable = 0;
   }
 
