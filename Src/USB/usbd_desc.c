@@ -338,7 +338,7 @@ uint8_t * USBD_FS_InterfaceStrDescriptor(USBD_SpeedTypeDef speed, uint16_t *leng
         {
             USBD_GetString((uint8_t *)USBD_INTERFACE_ABS_MOUSE_ON_STRING_FS, USBD_StrDesc, length);
         }
-        else if(BridgeMode == MODE_RELATIVE_MOUSE)
+        else if(BridgeMode == MODE_PRECISION_TOUCHPAD)
         {
             USBD_GetString((uint8_t *)USBD_INTERFACE_REL_MOUSE_ON_STRING_FS, USBD_StrDesc, length);
         }

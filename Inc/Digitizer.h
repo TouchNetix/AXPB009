@@ -43,6 +43,9 @@
 #define PENDING_WAKE                (1)
 #define SUSPENDED                   (2)
 
+#define INPUT_MOUSEMODE             (0U)
+#define INPUT_TOUCHPADMODE          (3U)
+
 /*============ Exported Variables ============*/
 extern volatile uint16_t wd100usTick;
 extern volatile uint16_t wdUSB1msTick;
@@ -54,11 +57,15 @@ extern          bool     boUSBTimeoutEnabled;
 extern          uint8_t  wakeup_option;
 
 /*============ Exported Functions ============*/
-void CRC_Checksum(void);
-void MultiPointDigitizer(void);
-void MouseDigitizer(void);
-void setup_proxy_for_digitizer(void);
-bool Check_u41Report(void);
+void    DigitizerInit(void);
+void    MultiPointDigitizer(void);
+void    AbsoluteMouseDigitizer(void);
+void    PrecisionTouchpad(void);
+void    CRC_Checksum(void);
+void    setup_proxy_for_digitizer(void);
+bool    Check_u41Report(void);
 uint8_t CheckTouches(void);
+void    SetTouchPadMode(uint8_t Mode);
+void    SetTouchPadInputSelection(uint8_t InputSelection);
 
 #endif /* DIGITIZER_H_ */

@@ -130,7 +130,7 @@ void MatchReportDescriptorToMode(USBD_HandleTypeDef *pdev, uint8_t BridgeMode)
             ((USBD_MOUSE_HID_ItfTypeDef *)pdev->pClassSpecificInterfaceMOUSE)->pReport = mouse_abs_ReportDesc_FS;
             break;
 
-        case MODE_RELATIVE_MOUSE:
+        case MODE_PRECISION_TOUCHPAD:
             /* report descriptor length */
             USBD_COMPOSITE_HID_CfgDesc[89] = USBD_MOUSE_REL_REPORT_DESC_SIZE_LO; // LOBYTE
             USBD_COMPOSITE_HID_CfgDesc[90] = USBD_MOUSE_REL_REPORT_DESC_SIZE_HI; // HIBYTE
@@ -174,14 +174,13 @@ void MatchReportDescriptorToMode(USBD_HandleTypeDef *pdev, uint8_t BridgeMode)
 // CUSTOMISED - finds the report descriptor length depending on what mode we're in
 void GetMouseDescriptorLength(uint8_t BridgeMode)
 {
-
     switch(BridgeMode)
     {
         case MODE_ABSOLUTE_MOUSE:
             byMouseReportLength = MOUSE_ABS_REPORT_LENGTH;
             break;
 
-        case MODE_RELATIVE_MOUSE:
+        case MODE_PRECISION_TOUCHPAD:
             byMouseReportLength = MOUSE_REL_REPORT_LENGTH;
             break;
 
@@ -198,7 +197,7 @@ void GetMouseDescriptorLength(uint8_t BridgeMode)
 // CUSTOMISED - alters the number of interfaces presented to host --> enables/disables the mouse interface
 void ConfigureCfgDescriptor(uint8_t MousMode)
 {
-    if(BridgeMode == MODE_ABSOLUTE_MOUSE || BridgeMode == MODE_RELATIVE_MOUSE || BridgeMode == MODE_PARALLEL_DIGITIZER)  // mouse/digitizer enabled
+    if(BridgeMode == MODE_ABSOLUTE_MOUSE || BridgeMode == MODE_PRECISION_TOUCHPAD || BridgeMode == MODE_PARALLEL_DIGITIZER)  // mouse/digitizer enabled
     {
         boMouseEnabled = true;
         NumInterfaces = 3;
@@ -220,7 +219,7 @@ void ConfigurePID(uint8_t BridgeMode)
             USBD_FS_DeviceDesc[11] = HIBYTE(DEVICE_MODE_PID_ABSOLUTE_MOUSE); // HIBYTE
             break;
 
-        case MODE_RELATIVE_MOUSE:
+        case MODE_PRECISION_TOUCHPAD:
             USBD_FS_DeviceDesc[10] = LOBYTE(DEVICE_MODE_PID_RELATIVE_MOUSE); // LOBYTE
             USBD_FS_DeviceDesc[11] = HIBYTE(DEVICE_MODE_PID_RELATIVE_MOUSE); // HIBYTE
             break;
@@ -311,7 +310,8 @@ uint8_t  USBD_MOUSE_HID_Setup (USBD_HandleTypeDef *pdev,
   uint16_t len = 0;
   uint8_t  *pbuf = NULL;
   USBD_MOUSE_HID_HandleTypeDef     *hhid = (USBD_MOUSE_HID_HandleTypeDef*)pdev->pClassDataMOUSE;
-  uint8_t buffer[USBD_MOUSE_HID_REPORT_IN_SIZE];
+//  uint8_t buffer[USBD_MOUSE_HID_REPORT_IN_SIZE];
+  uint8_t buffer[257];
   int8_t state;
 
   switch (req->bmRequest & USB_REQ_TYPE_MASK)
@@ -345,8 +345,6 @@ uint8_t  USBD_MOUSE_HID_Setup (USBD_HandleTypeDef *pdev,
           case MOUSE_HID_REQ_SET_REPORT:
               hhid->IsReportAvailable = 1;
               USBD_CtlPrepareRx (pdev, hhid->Report_buf, (uint8_t)(req->wLength));
-              // Think the data from here gets sent to the control endpoint (0) rather than being directed to
-              // this interface.
               break;
 
           case MOUSE_HID_REQ_GET_REPORT:
@@ -360,11 +358,6 @@ uint8_t  USBD_MOUSE_HID_Setup (USBD_HandleTypeDef *pdev,
                  buffer[0] = req->wValue & 0xff;
                  len++;
 
-                 // Length MUST NOT be bigger than USBD_CUSTOMHID_INREPORT_BUF_SIZE
-                 if(len > USBD_MOUSE_HID_REPORT_IN_SIZE)
-                 {
-                    len = USBD_MOUSE_HID_REPORT_IN_SIZE;
-                 }
                  USBD_CtlSendData (pdev,
                                    buffer,
                                    len);
@@ -504,7 +497,6 @@ uint8_t USBD_MOUSE_HID_EP0_RxReady(USBD_HandleTypeDef *pdev)
 
   if (hhid->IsReportAvailable == 1)
   {
-//    ((USBD_MOUSE_HID_ItfTypeDef *)pdev->pClassSpecificInterfaceMOUSE)->OutEvent(hhid->Report_buf);
       ((USBD_MOUSE_HID_ItfTypeDef *)pdev->pClassSpecificInterfaceMOUSE)->SetFeature(hhid->Report_buf[0],
                                                                                   &hhid->Report_buf[1]);
     hhid->IsReportAvailable = 0;

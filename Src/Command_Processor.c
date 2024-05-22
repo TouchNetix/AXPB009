@@ -324,7 +324,7 @@ void ProcessTBPCommand()
              * 5+: data read
              */
 
-            if(!(BridgeMode == MODE_PARALLEL_DIGITIZER || BridgeMode == MODE_ABSOLUTE_MOUSE || BridgeMode == MODE_RELATIVE_MOUSE || 1))   // we're *always* in press mode so this never triggers!
+            if(!(BridgeMode == MODE_PARALLEL_DIGITIZER || BridgeMode == MODE_ABSOLUTE_MOUSE || BridgeMode == MODE_PRECISION_TOUCHPAD || 1))   // we're *always* in press mode so this never triggers!
             {
                 /* bridge in incorrect mode */
                 pTBPCommandReport[1] = 0x98;    // error code
@@ -527,7 +527,7 @@ void ProcessTBPCommand()
                 /* Change value of BridgeMode and store in flash (saves desired state when rebooted) */
                 Device_DeInit();
 //                Store_BridgeMode_To_Flash(MODE_ABSOLUTE_MOUSE);
-                Store_BridgeMode_To_Flash(MODE_RELATIVE_MOUSE);
+                Store_BridgeMode_To_Flash(MODE_PRECISION_TOUCHPAD);
             }
             else
             {

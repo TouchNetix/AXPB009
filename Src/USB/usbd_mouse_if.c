@@ -29,6 +29,7 @@
 #include "usbd_press_if.h"
 #include <stdbool.h>
 
+#include "Digitizer.h"
 #include "Flash_Control.h"
 
 /*============ Defines ============*/
@@ -90,11 +91,13 @@ __ALIGN_BEGIN uint8_t mouse_abs_ReportDesc_FS[USBD_MOUSE_ABS_REPORT_DESC_SIZE] _
 /* USB Mouse HID Report Descriptor - Relative mouse mode */
 __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_MOUSE_REL_REPORT_DESC_SIZE] __ALIGN_END =
 {
-// TOUCHPAD
+/* ======= TOUCHPAD ======= */
     0x05, 0x0D,                         // USAGE_PAGE (Digitizers)
     0x09, 0x05,                         // USAGE (Touch Pad)
     0xA1, 0x01,                         // COLLECTION (Application)
     0x85, REPORT_TOUCHPAD,              //   REPORT_ID (Touch pad)
+
+    // FIRST CONTACT
     0x09, 0x22,                         //   USAGE (Finger)
     0xA1, 0x02,                         //   COLLECTION (Logical)
     0x15, 0x00,                         //     LOGICAL_MINIMUM (0)
@@ -107,7 +110,7 @@ __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_MOUSE_REL_REPORT_DESC_SIZE] _
     0x95, 0x01,                         //     REPORT_COUNT (1)
     0x75, 0x02,                         //     REPORT_SIZE (2)
     0x25, 0x02,                         //     LOGICAL_MAXIMUM (2)
-    0x09, 0x51,                         //     USAGE (Contact Identifier)
+    0x09, 0x51,                         //     USAGE (Contact Number Identifier)
     0x81, 0x02,                         //     INPUT (Data,Var,Abs)
     0x75, 0x01,                         //     REPORT_SIZE (1)
     0x95, 0x04,                         //     REPORT_COUNT (4)
@@ -127,6 +130,8 @@ __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_MOUSE_REL_REPORT_DESC_SIZE] _
     0x09, 0x31,                         //     USAGE (Y)
     0x81, 0x02,                         //     INPUT (Data,Var,Abs)
     0xC0,                               //   END_COLLECTION
+
+    // SCAN TIME
     0x55, 0x0C,                         //   UNIT_EXPONENT (-4)
     0x66, 0x01, 0x10,                   //   UNIT (Seconds)
     0x47, 0xFF, 0xFF, 0x00, 0x00,       //   PHYSICAL_MAXIMUM (65535)
@@ -136,11 +141,15 @@ __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_MOUSE_REL_REPORT_DESC_SIZE] _
     0x05, 0x0D,                         //   USAGE_PAGE (Digitizers)
     0x09, 0x56,                         //   USAGE (Scan Time)
     0x81, 0x02,                         //   INPUT (Data,Var,Abs)
+
+    // CONTACT COUNT
     0x09, 0x54,                         //   USAGE (Contact count)
     0x25, 0x7F,                         //   LOGICAL_MAXIMUM (127)
     0x95, 0x01,                         //   REPORT_COUNT (1)
     0x75, 0x08,                         //   REPORT_SIZE (8)
     0x81, 0x02,                         //   INPUT (Data,Var,Abs)
+
+    // BUTTONS
     0x05, 0x09,                         //   USAGE_PAGE (Button)
     0x09, 0x01,                         //   USAGE_(Button 1)
     0x09, 0x02,                         //   USAGE_(Button 2)
@@ -152,7 +161,7 @@ __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_MOUSE_REL_REPORT_DESC_SIZE] _
     0x95, 0x05,                         //   REPORT_COUNT (5)
     0x81, 0x03,                         //   INPUT (Cnst,Var,Abs)
 
-// FEATURE REPORTS
+    // MAXIMUM CONTACTS
     0x05, 0x0d,                         //   USAGE_PAGE (Digitizer)
     0x85, REPORT_FEATURE_MAXCT,         //   REPORT_ID (Feature MAX COUNT)
     0x09, 0x55,                         //   USAGE (Contact Count Maximum)
@@ -162,6 +171,7 @@ __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_MOUSE_REL_REPORT_DESC_SIZE] _
     0x25, 0x05,                         //   LOGICAL_MAXIMUM (5)
     0xB1, 0x02,                         //   FEATURE (Data,Var,Abs)
 
+    // CERTIFICATION BLOB
     0x06, 0x00, 0xFF,                   //   USAGE_PAGE (Vendor Defined)
     0x85, REPORT_FEATURE_PTPHQABLOB,    //   REPORT_ID (PTPHQA)
     0x09, 0xC5,                         //   USAGE (Vendor Usage 0xC5)
@@ -172,10 +182,11 @@ __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_MOUSE_REL_REPORT_DESC_SIZE] _
     0xB1, 0x02,                         //   FEATURE (Data,Var,Abs)
     0xC0,                               // END_COLLECTION
 
+    // INPUT MODE - COLLECTION SELECTION
     0x05, 0x0D,                         // USAGE_PAGE (Digitizer)
     0x09, 0x0E,                         // USAGE (Configuration)
     0xA1, 0x01,                         // COLLECTION (Application)
-    0x85, REPORT_FEATURE_CFG,           //   REPORT_ID (Feature CONFIGURATION)
+    0x85, REPORT_FEATURE_INPUTMODE,     //   REPORT_ID (Feature INPUT MODE)
     0x09, 0x22,                         //   USAGE (Finger)
     0xA1, 0x02,                         //   COLLECTION (logical)
     0x09, 0x52,                         //     USAGE (Input Mode)
@@ -186,6 +197,7 @@ __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_MOUSE_REL_REPORT_DESC_SIZE] _
     0xB1, 0x02,                         //     FEATURE (Data,Var,Abs
     0xC0,                               //   END_COLLECTION
 
+    // INPUT MODE - INPUT TYPE
     0x09, 0x22,                         //   USAGE (Finger)
     0xA1, 0x00,                         //   COLLECTION (physical)
     0x85, REPORT_FEATURE_FUNCTIONSWITCH,//     REPORT_ID (Feature FUNCTION SWITCH)
@@ -200,13 +212,15 @@ __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_MOUSE_REL_REPORT_DESC_SIZE] _
     0xC0,                               //   END_COLLECTION
     0xC0,                               // END_COLLECTION
 
-// MOUSE
+/* ======= MOUSE ======= */
     0x05, 0x01,                         // Usage Page (Generic Desktop),
     0x09, 0x02,                         // Usage (Mouse),
     0xA1, 0x01,                         // Collection (Application),
     0x85, REPORT_REL_MOUSE,             //   Report ID (Mouse)
     0x09, 0x01,                         //   Usage (Pointer),
     0xA1, 0x00,                         //   Collection (Physical),
+
+    // BUTTONS
     0x05, 0x09,                         //     Usage Page (Button),
     0x19, 0x01,                         //     Usage Minimum (01),                  3 buttons for left-click, right-click and middle-click.
     0x29, 0x03,                         //     Usage Maximum (03),
@@ -219,6 +233,8 @@ __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_MOUSE_REL_REPORT_DESC_SIZE] _
     0x95, 0x01,                         //     Report Count (1),                    which is repeated once.
     0x81, 0x01,                         //     Input (Constant),                    Mark the padding as constant (i.e. ignore them).
     0x05, 0x01,                         //     Usage Page (Generic Desktop),
+
+    // XY MOVEMENT
     0x09, 0x30,                         //     Usage (X),
     0x09, 0x31,                         //     Usage (Y),
     0x15, 0x81,                         //     Logical Minimum (-127),              X and Y can send values between -127 and 127.
@@ -524,7 +540,6 @@ __ALIGN_BEGIN uint8_t mouse_parallel_digitizer_ReportDesc_FS[USBD_MOUSE_PAR_DIGI
 // A generic certification 'blob' from MicroSoft, for development purposes
 __ALIGN_BEGIN uint8_t hid_THQL_digital_blob[USBHID_THQL_BLOB_SIZE] __ALIGN_END =
 {
-    REPORT_FEATURE_PTPHQABLOB,
     0xfc, 0x28, 0xfe, 0x84, 0x40, 0xcb, 0x9a, 0x87, 0x0d, 0xbe, 0x57, 0x3c, 0xb6, 0x70, 0x09, 0x88,
     0x07, 0x97, 0x2d, 0x2b, 0xe3, 0x38, 0x34, 0xb6, 0x6c, 0xed, 0xb0, 0xf7, 0xe5, 0x9c, 0xf6, 0xc2,
     0x2e, 0x84, 0x1b, 0xe8, 0xb4, 0x51, 0x78, 0x43, 0x1f, 0x28, 0x4b, 0x7c, 0x2d, 0x53, 0xaf, 0xfc,
@@ -597,10 +612,23 @@ static int8_t MOUSE_HID_OutEvent_FS(uint8_t* state)
  * @param  buffer: Received Data
  * @retval USBD_OK
  */
-uint8_t test = 0;
 static int8_t MOUSE_HID_SetFeature_FS(uint8_t event_idx, uint8_t* buffer)
 {
-    test ^= 1;
+    switch(event_idx)
+    {
+        case REPORT_FEATURE_INPUTMODE: /* Host dictates if bridge should report mouse or touch-pad reports */
+            SetTouchPadMode(buffer[0]);
+            break;
+
+        case REPORT_FEATURE_FUNCTIONSWITCH:
+            SetTouchPadInputSelection(buffer[0]);
+            break;
+
+        default: /* Report does not exist */
+            return (USBD_FAIL);
+            break;
+    }
+
     return (USBD_OK);
 }
 
@@ -624,6 +652,11 @@ static int8_t MOUSE_HID_GetFeature_FS(uint8_t event_idx, uint8_t* pBuffer, uint1
         case REPORT_FEATURE_MAXCT:
             pBuffer[0] = 0x05;
             *length = sizeof(uint8_t);
+            break;
+
+        case REPORT_FEATURE_PTPHQABLOB:
+            *length = sizeof(hid_THQL_digital_blob);
+            memcpy(pBuffer, hid_THQL_digital_blob, sizeof(hid_THQL_digital_blob));
             break;
 
         default: /* Report does not exist */

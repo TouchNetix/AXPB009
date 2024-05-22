@@ -439,7 +439,10 @@ static uint8_t  USBD_COMPOSITE_HID_DataOut (USBD_HandleTypeDef *pdev,
   */
 uint8_t USBD_COMPOSITE_HID_EP0_RxReady(USBD_HandleTypeDef *pdev)
 {
-    return USBD_GENERIC_HID_EP0_RxReady(pdev);
+    if (pdev->pClassDataMOUSE->IsReportAvailable == 1)
+        return USBD_MOUSE_HID_EP0_RxReady(pdev);
+    else
+        return USBD_GENERIC_HID_EP0_RxReady(pdev);
 }
 
 /**

@@ -45,6 +45,7 @@
 #include "Press_driver.h"
 #include "Usage_Builder.h"
 #include "Mode_Control.h"
+#include "Flash_Control.h"
 
 /*============ Defines ============*/
 #define U41_REPORT                  (0x41)
@@ -62,6 +63,9 @@
 #define PRESSURE_LSB                (6)
 #define PRESSURE_MSB                (7)
 
+#define TOUCHPAD_SURFACESWITCH_POS  (0U)
+#define TOUCHPAD_BUTTONSWITCH_POS   (1U)
+
 #define REL_MOUSE_MAX_POS_CHANGE    (127)
 #define REL_MOUSE_MAX_NEG_CHANGE    (-127)
 
@@ -73,11 +77,10 @@
 #define DATABYTES_PER_TOUCH         (7)
 
 /*============ Compilation Flags ============*/
-//#define MOUSEMODE_ABSOLUTE
-#define MOUSEMODE_RELATIVE
+
 
 /*============ Macros ============*/
-#define ALIGN_WITH_CORRECT_TOUCH(x) ((x-1)*DATABYTES_PER_TOUCH)
+#define ALIGN_WITH_CORRECT_TOUCH(x)  ( ( x - 1 ) * DATABYTES_PER_TOUCH )
 
 /*============ Data Types ============*/
 enum en_RelativeMouseEvents
@@ -87,11 +90,40 @@ enum en_RelativeMouseEvents
     eNoContacts = 2,
 };
 
+enum en_InputReportingMode
+{
+    eMouseMode = 0,
+    eTouchPadMode = 3,
+};
+
 struct RelMouse_AxisInfo
 {
     int32_t MovementCache;
     bool    CursorHasMoved;
     bool    CursorHasMovedThisFrame;
+};
+
+struct RelativeMouse
+{
+    struct RelMouse_AxisInfo AxisX;
+    struct RelMouse_AxisInfo AxisY;
+};
+
+struct Touchpad
+{
+
+};
+
+struct TouchPadInfo
+{
+    // Controls (set by the host)
+    enum en_InputReportingMode  InputMode;      /* Relative mouse mode or Windows Precision Touchpad mode */
+    bool                        SurfaceSwitch;  /* Indicates if surface contacts should be reported */
+    bool                        ButtonSwitch;   /* Indicates if button states should be reported */
+
+    // Mouse and Touchpad info
+    struct RelativeMouse        RelMouseInfo;
+    struct Touchpad             TouchpadInfo;
 };
 
 /*============ Local Variables ============*/
@@ -139,8 +171,7 @@ const uint16_t CRC16_IBM_8005_Table[256] = {
     0x8201, 0x42c0, 0x4380, 0x8341, 0x4100, 0x81c1, 0x8081, 0x4040
 };
 
-struct RelMouse_AxisInfo AxisX = {0};
-struct RelMouse_AxisInfo AxisY = {0};
+struct TouchPadInfo g_TouchPadInfo = {0};
 
 /*============ Exported Variables ============*/
 volatile uint16_t wd100usTick                               =  0;       // this is used to mark the digitizer packet with a timestamp --> incremented in SysTick_Handler every millisecond, Windows is expecting this value to overflow/wrap around, it is used as a reference from when the first touch is registered (after a period of not touching)
@@ -156,12 +187,27 @@ uint8_t  wakeup_option                                      =  0;
 /*============ Local Function Prototypes ============*/
 static uint8_t  GetXYZFromReport(bool boIgnoreCoords, uint8_t byTouchNum);
 static void     DecodeOneTouch(uint8_t byTouchToCheck, uint8_t *byStatus, uint8_t *wdXCoord, uint8_t *wdYCoord, uint8_t *byZAmplitude);
+static void     ProcessRelativeMouse(void);
+static void     ProcessTouchPad(void);
 static void     PrepareRelMouseReport(enum en_RelativeMouseEvents ContactEvent);
 static int8_t   ScaleRelMouseMovement(struct RelMouse_AxisInfo *pAxisInfo, int32_t PreScaleDistance);
 static void     PrepareAbsMouseReport(void);
 static void     SendMouseRightClick(void);
+static inline   uint16_t CRC16_IBM_8005(uint16_t CRCIn, uint8_t DataIn);
 
-/*============ Local Functions ============*/
+/*============ Exported Functions ============*/
+
+void DigitizerInit(void)
+{
+    g_TouchPadInfo.InputMode = eMouseMode;
+
+    // After a reset, report both contacts and button states
+    // https://tinyurl.com/4fkmpzu3
+    g_TouchPadInfo.SurfaceSwitch = true;
+    g_TouchPadInfo.ButtonSwitch = true;
+}
+
+/*-----------------------------------------------------------*/
 
 // checks if the data obtained during proxy is a touch report, and whether it passed the CRC check
 bool Check_u41Report(void)
@@ -205,287 +251,31 @@ uint8_t CheckTouches(void)
 
 /*-----------------------------------------------------------*/
 
-static void DecodeOneTouch(uint8_t byTouchToCheck, uint8_t *byStatus, uint8_t *wdXCoord, uint8_t *wdYCoord, uint8_t *byZAmplitude)
+void SetTouchPadMode(uint8_t Mode)
 {
-    // DON'T copy coordinates into global variables
-    *byStatus = GetXYZFromReport(IGNORE_COORDS, byTouchToCheck);
-
-    *((wdXCoord) + 0) = byReportX_lsb;
-    *((wdXCoord) + 1) = byReportX_msb;
-    *((wdYCoord) + 0) = byReportY_lsb;
-    *((wdYCoord) + 1) = byReportY_msb;
-
-    *byZAmplitude = byReportZ_lsb;
-}
-
-/*-----------------------------------------------------------*/
-
-static void PrepareRelMouseReport(enum en_RelativeMouseEvents ContactEvent)
-{
-    // Always need the previous frames touch coordinates
-    static uint16_t PreviousFrameX = 32767;
-    static uint16_t PreviousFrameY = 32767;
-
-    // Reset these flags
-    AxisX.CursorHasMovedThisFrame = false;
-    AxisY.CursorHasMovedThisFrame = false;
-
-    // Get the coordinates from this frame
-    uint16_t ThisFrameX = DigitizerXCoord;
-    uint16_t ThisFrameY = DigitizerYCoord;
-
-    // If it's a new contact (appeared this frame), update the previous coordinates to use
-    // this position.
-    if (ContactEvent == eNewContact)
+    if (Mode == INPUT_MOUSEMODE)
     {
-        PreviousFrameX = ThisFrameX;
-        PreviousFrameY = ThisFrameY;
+        g_TouchPadInfo.InputMode = eMouseMode;
+        byMouseReportLength = MOUSE_REL_REPORT_LENGTH;
     }
-
-    int32_t XDiff = (int32_t)ThisFrameX - (int32_t)PreviousFrameX;
-    int8_t MovementX = ScaleRelMouseMovement(&AxisX, XDiff);
-    AxisX.CursorHasMovedThisFrame = (MovementX != 0) ? true : false;
-
-    int32_t YDiff = (int32_t)ThisFrameY - (int32_t)PreviousFrameY;
-    int8_t MovementY = ScaleRelMouseMovement(&AxisY, YDiff);
-    AxisY.CursorHasMovedThisFrame = (MovementY != 0) ? true : false;
-
-    // Populate the report
-    usb_hid_mouse_report_in[0] = REPORT_REL_MOUSE;
-    usb_hid_mouse_report_in[1] = button_state;
-    usb_hid_mouse_report_in[2] = MovementX;
-    usb_hid_mouse_report_in[3] = MovementY;
-
-    // Finally, cache the touch coordinates from the previous frame
-    PreviousFrameX = ThisFrameX;
-    PreviousFrameY = ThisFrameY;
-
-    if (ContactEvent == eNoContacts)
+    else if (Mode == INPUT_TOUCHPADMODE)
     {
-        // All contacts removed, clear the movement caches
-        AxisX.MovementCache = 0;
-        AxisY.MovementCache = 0;
-    }
-}
-
-/*-----------------------------------------------------------*/
-
-static int8_t ScaleRelMouseMovement(struct RelMouse_AxisInfo *pAxisInfo, int32_t PreScaleDistance)
-{
-    int32_t ScaledDistance = 0;
-
-    // ======= First Attempt =======
-//    // Clamp between range of values that can be reported by a mouse (probably -127 to 127)
-//    int16_t ClampedDistance = (PreScaleDistance > REL_MOUSE_MAX_POS_CHANGE) ?
-//                                REL_MOUSE_MAX_POS_CHANGE :
-//                                ((PreScaleDistance < REL_MOUSE_MAX_NEG_CHANGE) ? REL_MOUSE_MAX_NEG_CHANGE : (int8_t)PreScaleDistance);
-//    // Pass clamped value to a quadratic equation of the form:
-//    //      y = -(x^3)/200000 + 3x/10
-//    // This makes the track-pad less sensitive
-//
-//    int32_t FirstTerm = ClampedDistance * ClampedDistance * ClampedDistance;
-//    FirstTerm /= 200000;
-//
-//    int16_t SecondTerm = 3 * ClampedDistance;
-//    SecondTerm /= 10;
-//
-//    ScaledDistance = ( - FirstTerm ) + SecondTerm;
-
-
-    // ======= Second Attempt =======
-//    // Linear for small movements, then scaled quadratically for faster movements
-//    // Clamp between range of values that can be reported by a mouse (probably -127 to 127)
-//    int16_t ClampedDistance = (PreScaleDistance > REL_MOUSE_MAX_POS_CHANGE) ?
-//                                REL_MOUSE_MAX_POS_CHANGE :
-//                                ((PreScaleDistance < REL_MOUSE_MAX_NEG_CHANGE) ? REL_MOUSE_MAX_NEG_CHANGE : (int8_t)PreScaleDistance);
-//
-//    if (ClampedDistance > 5)
-//    {
-//        // y = -(x^2)/1000 + 3x/10 + 4
-//        int32_t FirstTerm = ClampedDistance * ClampedDistance;
-//        FirstTerm /= 1000;
-//
-//        int32_t SecondTerm = 3 * ClampedDistance;
-//        SecondTerm /= 10;
-//
-//        int32_t ThirdTerm = 4;
-//
-//        ScaledDistance = ( - FirstTerm ) + SecondTerm + ThirdTerm;
-//    }
-//    else if (ClampedDistance < -5)
-//    {
-//        // y = (x^2)/1000 + 3x/10 - 4
-//        int32_t FirstTerm = ClampedDistance * ClampedDistance;
-//        FirstTerm /= 1000;
-//
-//        int32_t SecondTerm = 3 * ClampedDistance;
-//        SecondTerm /= 10;
-//
-//        int32_t ThirdTerm = 4;
-//
-//        ScaledDistance = FirstTerm + SecondTerm - ThirdTerm;
-//    }
-//    else
-//    {
-//        // For small movements, a touch needs to move further for the same cursor movement (as when moving faster)
-//        ScaledDistance = ClampedDistance;
-//    }
-
-
-    // ======= Third Attempt =======
-//    // For small movements, a contact needs to move further to actually move the cursor.
-//    // Requires the total distance moved to be cached.
-//    uint32_t AbsPreScaleDistance = abs(PreScaleDistance);
-//    if (AbsPreScaleDistance < 100)
-//    {
-//        pAxisInfo->MovementCache += PreScaleDistance;
-//        if (pAxisInfo->MovementCache > 100)
-//        {
-//            ScaledDistance = 1;
-//            pAxisInfo->MovementCache = 0;
-//        }
-//        else if (pAxisInfo->MovementCache < -100)
-//        {
-//            ScaledDistance = -1;
-//            pAxisInfo->MovementCache = 0;
-//        }
-//    }
-//    else
-//    {
-//        pAxisInfo->MovementCache = 0;
-//
-//        // Clamp between range of values that can be reported by a mouse (probably -127 to 127)
-//        int16_t ClampedDistance = (PreScaleDistance > REL_MOUSE_MAX_POS_CHANGE) ?
-//                                        REL_MOUSE_MAX_POS_CHANGE : ((PreScaleDistance < REL_MOUSE_MAX_NEG_CHANGE) ?
-//                                            REL_MOUSE_MAX_NEG_CHANGE : (int8_t)PreScaleDistance);
-//
-//        // Pass clamped value to a quadratic equation of the form:
-//        //      y = -(x^3)/200000 + 3x/10
-//
-//        int32_t FirstTerm = ClampedDistance * ClampedDistance * ClampedDistance;
-//        FirstTerm /= 200000;
-//
-//        int16_t SecondTerm = 3 * ClampedDistance;
-//        SecondTerm /= 10;
-//
-//        ScaledDistance = ( - FirstTerm ) + SecondTerm;
-//    }
-
-
-    // ======= Fourth Attempt ======= --> Most usable
-    // For small movements, a contact needs to move further to actually move the cursor.
-    uint32_t AbsPreScaleDistance = abs(PreScaleDistance);
-    if (AbsPreScaleDistance < 100)
-    {
-        pAxisInfo->MovementCache += PreScaleDistance;
-        if (pAxisInfo->MovementCache > 100)
-        {
-            ScaledDistance = 1;
-            pAxisInfo->MovementCache = 0;
-            pAxisInfo->CursorHasMoved = true;
-        }
-        else if (pAxisInfo->MovementCache < -100)
-        {
-            ScaledDistance = -1;
-            pAxisInfo->MovementCache = 0;
-            pAxisInfo->CursorHasMoved = true;
-        }
+        g_TouchPadInfo.InputMode = eTouchPadMode;
+        byMouseReportLength = MOUSE_TOUCHPAD_REPORT_LENGTH;
     }
     else
     {
-        pAxisInfo->MovementCache = 0;
-        pAxisInfo->CursorHasMoved = true;
-
-        ScaledDistance = PreScaleDistance / 50;
-
-        // Clamp between range of values that can be reported by a mouse
-        ScaledDistance = (ScaledDistance > REL_MOUSE_MAX_POS_CHANGE) ?
-                            REL_MOUSE_MAX_POS_CHANGE : ((ScaledDistance < REL_MOUSE_MAX_NEG_CHANGE) ?
-                                    REL_MOUSE_MAX_NEG_CHANGE : (int8_t)ScaledDistance);
+        // If unknown input mode selected, default to mouse mode (as per recommendation from Microsoft https://tinyurl.com/9v3sa5eb)
+        g_TouchPadInfo.InputMode = eMouseMode;
     }
-
-    return ((int8_t)ScaledDistance);
 }
 
 /*-----------------------------------------------------------*/
 
-static void PrepareAbsMouseReport(void)
+void SetTouchPadInputSelection(uint8_t InputSelection)
 {
-    uint16_t TempX;
-    uint16_t TempY;
-
-    TempX = DigitizerXCoord >> 4;
-    TempY = DigitizerYCoord >> 4;
-
-    usb_hid_mouse_report_in[0] = (0xF8 | button_state);
-
-    // send x coordinates
-    usb_hid_mouse_report_in[1] = TempX & 0xFF;
-    usb_hid_mouse_report_in[2] = TempX >> 8;
-
-    // then send y coordinates
-    usb_hid_mouse_report_in[3] = TempY & 0xFF;
-    usb_hid_mouse_report_in[4] = TempY >> 8;
-
-    boMouseReportToSend = 1;
-}
-
-/*-----------------------------------------------------------*/
-
-static void SendMouseRightClick(void)
-{
-    // send button press -> wait 30ms -> send button release
-    button_state = MOUSE_RIGHT_BUTTON;
-    PrepareAbsMouseReport();
-    Send_USB_Report(MOUSE, &hUsbDeviceFS, usb_hid_mouse_report_in, byMouseReportLength);
-
-    HAL_Delay(30);
-
-    button_state = MOUSE_NO_BUTTONS;
-    PrepareAbsMouseReport();
-    Send_USB_Report(MOUSE, &hUsbDeviceFS, usb_hid_mouse_report_in, byMouseReportLength);
-}
-
-/*-----------------------------------------------------------*/
-
-static uint8_t GetXYZFromReport(bool boIgnoreCoords, uint8_t byTouchToProcess)
-{
-    uint32_t Temp = 0;
-    uint8_t byTouchReportDetectState;
-
-    byTouchToProcess--; // our touch indexes start at 1, but arrays start at 0!
-
-    /* grab the touch coordinates */
-    byReportX_msb = u34_TCP_report[5 + (byTouchToProcess*4)];
-    byReportX_lsb = u34_TCP_report[4 + (byTouchToProcess*4)];
-    byReportY_msb = u34_TCP_report[7 + (byTouchToProcess*4)];
-    byReportY_lsb = u34_TCP_report[6 + (byTouchToProcess*4)];
-    byReportZ_lsb = u34_TCP_report[44 + (byTouchToProcess*1)];
-    byReportZ_msb = (byReportZ_lsb & 0x80) ? 0xFF : 0x00;   // sign extends the z value (which is only 8-bits long)
-
-    byTouchReportDetectState = ((u34_TCP_report[2] | ((u34_TCP_report[3] << 8))) & (1 << byTouchToProcess)) ? 0x20 : 0x00;  // determines if we have a valid touch
-
-    // these 2 bytes hold the Zlvl bits
-    Temp |= (uint16_t)(u34_TCP_report[56]) | ((uint16_t)(u34_TCP_report[57]) << 8);
-    Temp |= ((uint16_t)(u34_TCP_report[58]) | ((uint16_t)(u34_TCP_report[59]) << 8)) << 16;
-
-    if(boIgnoreCoords == DO_NOT_IGNORE_COORDS) // sometimes we don't want to use the coordinates we're processing (e.g. second 'click' in mouse mode) so can choose to ignore them
-    {
-        DigitizerXCoord = ((uint16_t)(byReportX_msb) << 8) | byReportX_lsb;
-        DigitizerYCoord = ((uint16_t)(byReportY_msb) << 8) | byReportY_lsb;
-    }
-
-    return byTouchReportDetectState;
-}
-
-/*-----------------------------------------------------------*/
-
-static inline uint16_t CRC16_IBM_8005(uint16_t CRCIn, uint8_t DataIn)
-{
-    uint8_t Idx;
-
-    Idx = (uint8_t) ((CRCIn ^ DataIn) & 0xFF);
-    return((CRCIn >> 8) ^ CRC16_IBM_8005_Table[Idx]);
+    g_TouchPadInfo.SurfaceSwitch = ((InputSelection & (1U << TOUCHPAD_SURFACESWITCH_POS)) != 0) ? true : false;
+    g_TouchPadInfo.ButtonSwitch  = ((InputSelection & (1U << TOUCHPAD_BUTTONSWITCH_POS)) != 0) ? true : false;
 }
 
 /*-----------------------------------------------------------*/
@@ -502,7 +292,6 @@ uint16_t ComputeCRC16(uint8_t *Buffer, uint32_t Len, uint16_t SeedCRC)
     return(SeedCRC);
 }
 
-/*============ Exported Functions ============*/
 
 void CRC_Checksum(void) // Checks if CRC received data is correct
 {
@@ -626,7 +415,7 @@ void MultiPointDigitizer(void)
 
 /*-----------------------------------------------------------*/
 
-void MouseDigitizer(void)
+void AbsoluteMouseDigitizer(void)
 {
     bool boGotTouchReport;
     bool boTouch1Is = false;
@@ -657,7 +446,6 @@ void MouseDigitizer(void)
         }
         else if(usb_remote_wake_state == RESUMED)
         {
-#if defined(MOUSEMODE_ABSOLUTE)
             boTouch1Is = GetXYZFromReport(DO_NOT_IGNORE_COORDS, 1); // only copy the coordinates for the first touch --> second touch is a 'right click' so don't want location of it, just if it's present or not
 
             if(((byReportZ_lsb & 0x80) != 0x80)) // if z value is negative, reject the touch!
@@ -683,93 +471,56 @@ void MouseDigitizer(void)
                     }
                 }
             }
-#elif defined(MOUSEMODE_RELATIVE)
-            boTouch1Is = GetXYZFromReport(DO_NOT_IGNORE_COORDS, 1); // only copy the coordinates for the first touch
-
-            if (((byReportZ_lsb & 0x80) != 0x80)) // if z value is negative, reject the touch!
-            {
-                // =========== Button States ===========
-                if (byNumTouchesIs > 2)
-                {
-                    // 3 or more contacts - Right button.
-                    button_state = MOUSE_RIGHT_BUTTON;
-                }
-                else if (byNumTouchesIs > 1)
-                {
-                    // 2 contacts - Left button.
-                    button_state = MOUSE_LEFT_BUTTON;
-                }
-                else if (byNumTouchesIs > 0)
-                {
-                    // 1 contact - No buttons.
-                    button_state = MOUSE_NO_BUTTONS;
-                }
-                else
-                {
-                    // No contacts this frame
-                    if ((AxisX.CursorHasMoved == false) && (AxisY.CursorHasMoved == false))
-                    {
-                        if (byNumTouchesWas > 1)
-                        {
-                            button_state = MOUSE_RIGHT_BUTTON;
-                        }
-                        else if (byNumTouchesWas > 0)
-                        {
-                            button_state = MOUSE_LEFT_BUTTON;
-                        }
-                    }
-                }
-
-                if (boTouch1Is)
-                {
-                    if (byNumTouchesWas == 0)
-                    {
-                        // First contact has just appeared this frame
-                        PrepareRelMouseReport(eNewContact);
-                    }
-                    else
-                    {
-                        // Contact was present last frame
-                        PrepareRelMouseReport(ePreviousContact);
-                    }
-
-                    if ((AxisX.CursorHasMovedThisFrame == true) ||
-                            (AxisY.CursorHasMovedThisFrame == true) ||
-                            (button_state != MOUSE_NO_BUTTONS))
-                    {
-                        boMouseReportToSend = 1;
-                    }
-                }
-                else
-                {
-                    if (byNumTouchesWas > 0)
-                    {
-                        PrepareRelMouseReport(ePreviousContact);
-                        boMouseReportToSend = 1;
-                    }
-                    else if ((byNumTouchesWas == 0) && (button_state != MOUSE_NO_BUTTONS))
-                    {
-                        // Button state to clear
-                        button_state = MOUSE_NO_BUTTONS;
-                        PrepareRelMouseReport(eNoContacts);
-                        boMouseReportToSend = 1;
-                    }
-                    else
-                    {
-                        // No report to prepare
-                        AxisX.CursorHasMoved = false;
-                        AxisY.CursorHasMoved = false;
-                        button_state = MOUSE_NO_BUTTONS;
-                    }
-                }
-            }
-#else
-#error "Define a mouse mode"
-#endif
         }
 
         u34_TCP_report[1] = 0x00;   // "consumes" the report so it isn't used again
+    }
+}
 
+/*-----------------------------------------------------------*/
+
+void PrecisionTouchpad(void)
+{
+    bool boGotTouchReport;
+    uint8_t byNumTouchesIs = CheckTouches();
+
+    boGotTouchReport = Check_u41Report();   // checks if we're actually dealing with a u41 (touch report)
+
+    if(boGotTouchReport)
+    {
+        if((usb_remote_wake_state == SUSPENDED) || (usb_remote_wake_state == PENDING_WAKE))
+        {
+            if(usb_remote_wake_state == PENDING_WAKE)
+            {
+                HAL_PCD_ActivateRemoteWakeup(&hpcd_USB_FS);
+                HAL_Delay(10);
+                HAL_PCD_DeActivateRemoteWakeup(&hpcd_USB_FS);
+            }
+            else if((usb_remote_wake_state == SUSPENDED) && (byNumTouchesIs > 0))
+            {
+                usb_remote_wake_state = PENDING_WAKE;
+            }
+        }
+        else if(usb_remote_wake_state == RESUMED)
+        {
+            if(((byReportZ_lsb & 0x80) != 0x80)) // if z value is negative, reject the touch!
+            {
+                if (g_TouchPadInfo.InputMode == eMouseMode)
+                {
+                    ProcessRelativeMouse();
+                }
+                else if (g_TouchPadInfo.InputMode == eTouchPadMode)
+                {
+                    ProcessTouchPad();
+                }
+                else
+                {
+                    // Unknown input mode
+                }
+            }
+        }
+
+        u34_TCP_report[1] = 0x00;   // "consumes" the report so it isn't used again
     }
 }
 
@@ -784,6 +535,333 @@ void setup_proxy_for_digitizer(void)
     aXiom_Tx_Buffer[0] = u34_addr & 0x00FF; // offset of u34
     aXiom_Tx_Buffer[1] = (u34_addr & 0xFF00) >> 8; // page address of u34
     memset(usb_hid_mouse_report_in, 0x00, USBD_MOUSE_HID_REPORT_IN_SIZE);   // pre-zero this
+}
+
+/*-----------------------------------------------------------*/
+
+/*============ Local Functions ============*/
+
+static void DecodeOneTouch(uint8_t byTouchToCheck, uint8_t *byStatus, uint8_t *wdXCoord, uint8_t *wdYCoord, uint8_t *byZAmplitude)
+{
+    // DON'T copy coordinates into global variables
+    *byStatus = GetXYZFromReport(IGNORE_COORDS, byTouchToCheck);
+
+    *((wdXCoord) + 0) = byReportX_lsb;
+    *((wdXCoord) + 1) = byReportX_msb;
+    *((wdYCoord) + 0) = byReportY_lsb;
+    *((wdYCoord) + 1) = byReportY_msb;
+
+    *byZAmplitude = byReportZ_lsb;
+}
+
+/*-----------------------------------------------------------*/
+
+static void ProcessRelativeMouse(void)
+{
+    bool boTouch1Is = GetXYZFromReport(DO_NOT_IGNORE_COORDS, 1); // only copy the coordinates for the first touch --> second touch is a 'right click' so don't want location of it, just if it's present or not
+    static uint8_t byNumTouchesIs = 0;
+    static uint8_t byNumTouchesWas = 0;
+
+    byNumTouchesWas = byNumTouchesIs;
+    byNumTouchesIs = CheckTouches();
+
+    // =========== Button States START ===========
+    if (byNumTouchesIs > 2)
+    {
+        // 3 or more contacts - Right button.
+        button_state = MOUSE_RIGHT_BUTTON;
+    }
+    else if (byNumTouchesIs > 1)
+    {
+        // 2 contacts - Left button.
+        button_state = MOUSE_LEFT_BUTTON;
+    }
+    else if (byNumTouchesIs > 0)
+    {
+        // 1 contact - No buttons.
+        button_state = MOUSE_NO_BUTTONS;
+    }
+    else
+    {
+        // No contacts this frame
+        if ((g_TouchPadInfo.RelMouseInfo.AxisX.CursorHasMoved == false) && (g_TouchPadInfo.RelMouseInfo.AxisY.CursorHasMoved == false))
+        {
+            if (byNumTouchesWas > 1)
+            {
+                button_state = MOUSE_RIGHT_BUTTON;
+            }
+            else if (byNumTouchesWas > 0)
+            {
+                button_state = MOUSE_LEFT_BUTTON;
+            }
+        }
+    }
+    // =========== Button States END ===========
+
+    if (boTouch1Is)
+    {
+        if (byNumTouchesWas == 0)
+        {
+            // First contact has just appeared this frame
+            PrepareRelMouseReport(eNewContact);
+        }
+        else
+        {
+            // Contact was present last frame
+            PrepareRelMouseReport(ePreviousContact);
+        }
+
+        if ((g_TouchPadInfo.RelMouseInfo.AxisX.CursorHasMovedThisFrame == true) ||
+                (g_TouchPadInfo.RelMouseInfo.AxisY.CursorHasMovedThisFrame == true) ||
+                (button_state != MOUSE_NO_BUTTONS))
+        {
+            boMouseReportToSend = 1;
+        }
+    }
+    else
+    {
+        if (byNumTouchesWas > 0)
+        {
+            PrepareRelMouseReport(ePreviousContact);
+            boMouseReportToSend = 1;
+        }
+        else if ((byNumTouchesWas == 0) && (button_state != MOUSE_NO_BUTTONS))
+        {
+            // Button state to clear
+            button_state = MOUSE_NO_BUTTONS;
+            PrepareRelMouseReport(eNoContacts);
+            boMouseReportToSend = 1;
+        }
+        else
+        {
+            // No report to prepare
+            g_TouchPadInfo.RelMouseInfo.AxisX.CursorHasMoved = false;
+            g_TouchPadInfo.RelMouseInfo.AxisY.CursorHasMoved = false;
+            button_state = MOUSE_NO_BUTTONS;
+        }
+    }
+}
+
+/*-----------------------------------------------------------*/
+
+static void ProcessTouchPad(void)
+{
+    uint8_t touched = 0;
+    uint16_t digitizer_timer = 0;
+
+    usb_hid_mouse_report_in[0] = REPORT_TOUCHPAD; /* Report ID */
+
+    for(uint8_t byTouchNum = 1u; byTouchNum <= 1; byTouchNum++) /* perform same processing for each touch */
+    {
+        if(GetXYZFromReport(DO_NOT_IGNORE_COORDS, byTouchNum))
+        {
+            if(byReportZ_lsb >= 0x80) /* Negative value it indicates there is a hover or prox */
+            {
+                touched = 0;
+            }
+            else
+            {
+//                touched = CONFIDENCE | IN_RANGE | TIP_SWITCH; // touch present
+                touched = 0b10 | 0b01;
+            }
+        }
+        else
+        {
+            touched = 0;
+        }
+
+        usb_hid_mouse_report_in[1] = (uint8_t)(byTouchNum << 2u) | touched;;
+        usb_hid_mouse_report_in[2] = (DigitizerXCoord >> 4) & 0xFF;
+        usb_hid_mouse_report_in[3] = (DigitizerXCoord >> 4) >> 8;
+        usb_hid_mouse_report_in[4] = (DigitizerYCoord >> 4) & 0xFF;
+        usb_hid_mouse_report_in[5] = (DigitizerYCoord >> 4) >> 8;
+    }
+
+    // Scan time
+    digitizer_timer = wd100usTick; // Windows expects this to increment of 100 microseconds - so we do that!
+    usb_hid_mouse_report_in[6] = digitizer_timer & 0xFF;
+    usb_hid_mouse_report_in[7] = digitizer_timer >> 8;
+
+    // Contact count
+    usb_hid_mouse_report_in[8] = 5;
+
+    // Buttons
+    usb_hid_mouse_report_in[9] = 0;
+
+    u34_TCP_report[1] = 0x00;   // "consumes" the report so it isn't used again
+
+    boMouseReportToSend = 1;
+}
+
+/*-----------------------------------------------------------*/
+
+static void PrepareRelMouseReport(enum en_RelativeMouseEvents ContactEvent)
+{
+    // Always need the previous frames touch coordinates
+    static uint16_t PreviousFrameX = 32767;
+    static uint16_t PreviousFrameY = 32767;
+
+    // Reset these flags
+    g_TouchPadInfo.RelMouseInfo.AxisX.CursorHasMovedThisFrame = false;
+    g_TouchPadInfo.RelMouseInfo.AxisY.CursorHasMovedThisFrame = false;
+
+    // Get the coordinates from this frame
+    uint16_t ThisFrameX = DigitizerXCoord;
+    uint16_t ThisFrameY = DigitizerYCoord;
+
+    // If it's a new contact (appeared this frame), update the previous coordinates to use
+    // this position.
+    if (ContactEvent == eNewContact)
+    {
+        PreviousFrameX = ThisFrameX;
+        PreviousFrameY = ThisFrameY;
+    }
+
+    int32_t XDiff = (int32_t)ThisFrameX - (int32_t)PreviousFrameX;
+    int8_t MovementX = ScaleRelMouseMovement(&g_TouchPadInfo.RelMouseInfo.AxisX, XDiff);
+    g_TouchPadInfo.RelMouseInfo.AxisX.CursorHasMovedThisFrame = (MovementX != 0) ? true : false;
+
+    int32_t YDiff = (int32_t)ThisFrameY - (int32_t)PreviousFrameY;
+    int8_t MovementY = ScaleRelMouseMovement(&g_TouchPadInfo.RelMouseInfo.AxisY, YDiff);
+    g_TouchPadInfo.RelMouseInfo.AxisY.CursorHasMovedThisFrame = (MovementY != 0) ? true : false;
+
+    // Populate the report
+    usb_hid_mouse_report_in[0] = REPORT_REL_MOUSE;
+    usb_hid_mouse_report_in[1] = button_state;
+    usb_hid_mouse_report_in[2] = MovementX;
+    usb_hid_mouse_report_in[3] = MovementY;
+
+    // Finally, cache the touch coordinates from the previous frame
+    PreviousFrameX = ThisFrameX;
+    PreviousFrameY = ThisFrameY;
+
+    if (ContactEvent == eNoContacts)
+    {
+        // All contacts removed, clear the movement caches
+        g_TouchPadInfo.RelMouseInfo.AxisX.MovementCache = 0;
+        g_TouchPadInfo.RelMouseInfo.AxisY.MovementCache = 0;
+    }
+}
+
+/*-----------------------------------------------------------*/
+
+static int8_t ScaleRelMouseMovement(struct RelMouse_AxisInfo *pAxisInfo, int32_t PreScaleDistance)
+{
+    int32_t ScaledDistance = 0;
+
+    // For small movements, a contact needs to move further to actually move the cursor.
+    uint32_t AbsPreScaleDistance = abs(PreScaleDistance);
+    if (AbsPreScaleDistance < 100)
+    {
+        pAxisInfo->MovementCache += PreScaleDistance;
+        if (pAxisInfo->MovementCache > 100)
+        {
+            ScaledDistance = 1;
+            pAxisInfo->MovementCache = 0;
+            pAxisInfo->CursorHasMoved = true;
+        }
+        else if (pAxisInfo->MovementCache < -100)
+        {
+            ScaledDistance = -1;
+            pAxisInfo->MovementCache = 0;
+            pAxisInfo->CursorHasMoved = true;
+        }
+    }
+    else
+    {
+        pAxisInfo->MovementCache = 0;
+        pAxisInfo->CursorHasMoved = true;
+
+        ScaledDistance = PreScaleDistance / 50;
+
+        // Clamp between range of values that can be reported by a mouse
+        ScaledDistance = (ScaledDistance > REL_MOUSE_MAX_POS_CHANGE) ?
+                            REL_MOUSE_MAX_POS_CHANGE : ((ScaledDistance < REL_MOUSE_MAX_NEG_CHANGE) ?
+                                    REL_MOUSE_MAX_NEG_CHANGE : (int8_t)ScaledDistance);
+    }
+
+    return ((int8_t)ScaledDistance);
+}
+
+/*-----------------------------------------------------------*/
+
+static void PrepareAbsMouseReport(void)
+{
+    uint16_t TempX;
+    uint16_t TempY;
+
+    TempX = DigitizerXCoord >> 4;
+    TempY = DigitizerYCoord >> 4;
+
+    usb_hid_mouse_report_in[0] = (0xF8 | button_state);
+
+    // send x coordinates
+    usb_hid_mouse_report_in[1] = TempX & 0xFF;
+    usb_hid_mouse_report_in[2] = TempX >> 8;
+
+    // then send y coordinates
+    usb_hid_mouse_report_in[3] = TempY & 0xFF;
+    usb_hid_mouse_report_in[4] = TempY >> 8;
+
+    boMouseReportToSend = 1;
+}
+
+/*-----------------------------------------------------------*/
+
+static void SendMouseRightClick(void)
+{
+    // send button press -> wait 30ms -> send button release
+    button_state = MOUSE_RIGHT_BUTTON;
+    PrepareAbsMouseReport();
+    Send_USB_Report(MOUSE, &hUsbDeviceFS, usb_hid_mouse_report_in, byMouseReportLength);
+
+    HAL_Delay(30);
+
+    button_state = MOUSE_NO_BUTTONS;
+    PrepareAbsMouseReport();
+    Send_USB_Report(MOUSE, &hUsbDeviceFS, usb_hid_mouse_report_in, byMouseReportLength);
+}
+
+/*-----------------------------------------------------------*/
+
+static uint8_t GetXYZFromReport(bool boIgnoreCoords, uint8_t byTouchToProcess)
+{
+    uint32_t Temp = 0;
+    uint8_t byTouchReportDetectState;
+
+    byTouchToProcess--; // our touch indexes start at 1, but arrays start at 0!
+
+    /* grab the touch coordinates */
+    byReportX_msb = u34_TCP_report[5 + (byTouchToProcess*4)];
+    byReportX_lsb = u34_TCP_report[4 + (byTouchToProcess*4)];
+    byReportY_msb = u34_TCP_report[7 + (byTouchToProcess*4)];
+    byReportY_lsb = u34_TCP_report[6 + (byTouchToProcess*4)];
+    byReportZ_lsb = u34_TCP_report[44 + (byTouchToProcess*1)];
+    byReportZ_msb = (byReportZ_lsb & 0x80) ? 0xFF : 0x00;   // sign extends the z value (which is only 8-bits long)
+
+    byTouchReportDetectState = ((u34_TCP_report[2] | ((u34_TCP_report[3] << 8))) & (1 << byTouchToProcess)) ? 0x20 : 0x00;  // determines if we have a valid touch
+
+    // these 2 bytes hold the Zlvl bits
+    Temp |= (uint16_t)(u34_TCP_report[56]) | ((uint16_t)(u34_TCP_report[57]) << 8);
+    Temp |= ((uint16_t)(u34_TCP_report[58]) | ((uint16_t)(u34_TCP_report[59]) << 8)) << 16;
+
+    if(boIgnoreCoords == DO_NOT_IGNORE_COORDS) // sometimes we don't want to use the coordinates we're processing (e.g. second 'click' in mouse mode) so can choose to ignore them
+    {
+        DigitizerXCoord = ((uint16_t)(byReportX_msb) << 8) | byReportX_lsb;
+        DigitizerYCoord = ((uint16_t)(byReportY_msb) << 8) | byReportY_lsb;
+    }
+
+    return byTouchReportDetectState;
+}
+
+/*-----------------------------------------------------------*/
+
+static inline uint16_t CRC16_IBM_8005(uint16_t CRCIn, uint8_t DataIn)
+{
+    uint8_t Idx;
+
+    Idx = (uint8_t) ((CRCIn ^ DataIn) & 0xFF);
+    return((CRCIn >> 8) ^ CRC16_IBM_8005_Table[Idx]);
 }
 
 /*-----------------------------------------------------------*/

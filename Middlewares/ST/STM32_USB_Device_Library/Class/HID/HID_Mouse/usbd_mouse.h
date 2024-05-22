@@ -57,6 +57,7 @@
 #define MOUSE_PARALLEL_DIGITIZER_REPORT_LENGTH  (39)
 #define MOUSE_ABS_REPORT_LENGTH                 (5)
 #define MOUSE_REL_REPORT_LENGTH                 (4)
+#define MOUSE_TOUCHPAD_REPORT_LENGTH            (10)
 
 #define USB_MOUSE_HID_CONFIG_DESC_SIZ           (41)
 #define USB_MOUSE_HID_DESC_SIZ                  (9)

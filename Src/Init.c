@@ -199,12 +199,16 @@ void Device_Init(void)
     HAL_GPIO_WritePin(LED_AXIOM_GPIO_Port, LED_AXIOM_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(LED_USB_GPIO_Port, LED_USB_Pin, GPIO_PIN_RESET);
 
-    if(BridgeMode == MODE_PARALLEL_DIGITIZER) // set comms parameters for device to work in digitizer mode (noone else to set these!)
+    if((BridgeMode == MODE_PARALLEL_DIGITIZER) ||
+            (BridgeMode == MODE_PRECISION_TOUCHPAD))
     {
-        HAL_TIM_Base_Start_IT(&htim16); // starts the timer used for digitizer timestamps
+        // Starts the timer used for digitizer time-stamps.
+        HAL_TIM_Base_Start_IT(&htim16);
     }
 
     InitProxyInterruptMode();   // sets pin PA0 as EXTI interrupt --> this means the bridge will always enter proxy mode at startup (digitizer or not)
+
+    DigitizerInit();
 
     /* USB Initialisation */
     MX_USB_DEVICE_Init();   // USB is final thing to setup --> means nothing else will hold up the device, allowing it to respond correctly (otherwise it would be unresponsive/dead in the hosts' eyes)

@@ -35,11 +35,11 @@
 #define REPORT_TOUCHPAD                 (0x01)
 #define REPORT_FEATURE_MAXCT            (0x02)
 #define REPORT_FEATURE_PTPHQABLOB       (0x03)
-#define REPORT_FEATURE_CFG              (0x04)
+#define REPORT_FEATURE_INPUTMODE        (0x04)  // Host dictate whether to report as a mouse or touch-pad
 #define REPORT_FEATURE_FUNCTIONSWITCH   (0x05)
 #define REPORT_REL_MOUSE                (0x06)
 
-#define USBHID_THQL_BLOB_SIZE           (257)
+#define USBHID_THQL_BLOB_SIZE           (256)
 
 /*============ Exported Types ============*/
 
@@ -56,7 +56,6 @@ extern USBD_MOUSE_HID_ItfTypeDef USBD_MouseHID_fops_FS;
 extern uint8_t mouse_abs_ReportDesc_FS                  [USBD_MOUSE_ABS_REPORT_DESC_SIZE];
 extern uint8_t mouse_rel_ReportDesc_FS                  [USBD_MOUSE_REL_REPORT_DESC_SIZE];
 extern uint8_t mouse_parallel_digitizer_ReportDesc_FS   [USBD_MOUSE_PAR_DIGITIZER_DESC_SIZE];
-extern uint8_t hid_THQL_digital_blob                    [USBHID_THQL_BLOB_SIZE];
 
 /*============ Exported Functions ============*/
 

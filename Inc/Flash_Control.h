@@ -39,7 +39,7 @@
 /*============ Exported Defines ============*/
 #define MODE_TBP_BASIC              (0x00u)
 #define MODE_ABSOLUTE_MOUSE         (0x01u)
-#define MODE_RELATIVE_MOUSE         (0x02u)
+#define MODE_PRECISION_TOUCHPAD     (0x02u)
 #define MODE_PARALLEL_DIGITIZER     (0x03u)
 
 /*============ Exported Function Prototypes ============*/
