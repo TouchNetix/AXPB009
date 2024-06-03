@@ -33,7 +33,8 @@
 #include "Flash_Control.h"
 
 /*============ Defines ============*/
-
+#define DIGITIZER_MAX_CONTACT_CT        (0x05U)
+#define PRECISION_TPAD_MAX_CONTACT_CT   (0x01U)
 
 /*============ Macros ============*/
 
@@ -650,7 +651,15 @@ static int8_t MOUSE_HID_GetFeature_FS(uint8_t event_idx, uint8_t* pBuffer, uint1
     switch(event_idx)
     {
         case REPORT_FEATURE_MAXCT:
-            pBuffer[0] = 0x05;
+            if (BridgeMode == MODE_PARALLEL_DIGITIZER)
+            {
+                pBuffer[0] = DIGITIZER_MAX_CONTACT_CT;
+            }
+            else if (BridgeMode == MODE_PRECISION_TOUCHPAD)
+            {
+                pBuffer[0] = PRECISION_TPAD_MAX_CONTACT_CT;
+            }
+
             *length = sizeof(uint8_t);
             break;
 

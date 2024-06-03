@@ -141,13 +141,12 @@ int main(void)
                     }
                     else if(BridgeMode == MODE_PRECISION_TOUCHPAD)
                     {
-//                        PrecisionTouchpad();
+                        PrecisionTouchpad();
                     }
                 }
 
                 // press endpoint is always active so this is always executed
                 BuildPressReportFromPressAndTouch();
-
             }
         }
         else if(ProxyMP_TotalNumBytesRx != 0)   // if this variable is non-zero, it means a 3D read is happening so enter here

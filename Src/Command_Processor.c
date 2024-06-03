@@ -48,80 +48,81 @@
 #include "Timers_and_LEDs.h"
 
 /*============ Defines ============*/
-#define READ                            (0x80)
-#define WRITE                           (0x00)
-#define PROXY_SETTINGS_OK               (0x00u)
-#define INVALID_SETTINGS                (0x01u)
-#define INVALID_COMMAND                 (0x99u)
-#define MODE_SWITCH_OK                  (0xE7u)
-#define SPI_MODE_ADDRESS                (0x01u)
-#define I2C_ERROR                       (0x81u)
-#define UNKNOWN_DEVICE                  (0xFFu)
-#define ID_F042                         (0x0Au)
-#define ID_F070                         (0x0Bu)
-#define ID_F072                         (0x0Cu)
+#define READ                (0x80)
+#define WRITE               (0x00)
+#define PROXY_SETTINGS_OK   (0x00u)
+#define INVALID_SETTINGS    (0x01u)
+#define INVALID_COMMAND     (0x99u)
+#define MODE_SWITCH_OK      (0xE7u)
+#define SPI_MODE_ADDRESS    (0x01u)
+#define I2C_ERROR           (0x81u)
+#define UNKNOWN_DEVICE      (0xFFu)
+#define ID_F042             (0x0Au)
+#define ID_F070             (0x0Bu)
+#define ID_F072             (0x0Cu)
 
 /*------------TBP COMMANDS------------*/
-#define CMD_ZERO                        (0x00u)     /* TH2 will call this as it exits - stops proxy mode, starts counter to re-enable proxy mode once it has closed */
-#define CMD_AXIOM_COMMS                 (0x51u)     /* used by TH2 to read/write from the bridge */
-#define CMD_MULTIPAGE_READ              (0x71u)     /* NOTE: this is NOT the same as proxy mode, TH2 will request this command each time it wants a block */
-#define CMD_SET_CONFIG                  (0x80u)     /* TH2 COMPATIBILITY - sets parameters for bridge to use */
-#define CMD_NULL                        (0x86u)     /* doesn't do anything other than cancels proxy if sent to control endpoint */
-#define CMD_START_PROXY                 (0x88u)     /* bridge continually reads reports from aXiom and chucks it up the USB to the host */
-#define CMD_GET_CONFIG                  (0x8Bu)     /* TH2 COMPATIBILITY - TH2 reads some operating parameters from the bridge */
-#define CMD_RESET_AXIOM                 (0x99u)     /* allows user to reset aXiom at will via a command */
-#define CMD_WRITE_USAGE                 (0xA2u)     /* used when in digitizer or mouse mode - i.e. when used in anything that isn't TH2 */
-#define CMD_READ_USAGE                  (0xA3u)     /* used when in digitizer or mouse mode - i.e. when used in anything that isn't TH2 */
-#define CMD_FIND_I2C_ADDRESS            (0xE0u)     /* returns the i2c address of aXiom, or reports as in SPI mode */
+#define CMD_ZERO                                (0x00u)     /* TH2 will call this as it exits - stops proxy mode, starts counter to re-enable proxy mode once it has closed */
+#define CMD_AXIOM_COMMS                         (0x51u)     /* used by TH2 to read/write from the bridge */
+#define CMD_MULTIPAGE_READ                      (0x71u)     /* NOTE: this is NOT the same as proxy mode, TH2 will request this command each time it wants a block */
+#define CMD_SET_CONFIG                          (0x80u)     /* TH2 COMPATIBILITY - sets parameters for bridge to use */
+#define CMD_NULL                                (0x86u)     /* doesn't do anything other than cancels proxy if sent to control endpoint */
+#define CMD_START_PROXY                         (0x88u)     /* bridge continually reads reports from aXiom and chucks it up the USB to the host */
+#define CMD_GET_CONFIG                          (0x8Bu)     /* TH2 COMPATIBILITY - TH2 reads some operating parameters from the bridge */
+#define CMD_RESET_AXIOM                         (0x99u)     /* allows user to reset aXiom at will via a command */
+#define CMD_WRITE_USAGE                         (0xA2u)     /* used when in digitizer or mouse mode - i.e. when used in anything that isn't TH2 */
+#define CMD_READ_USAGE                          (0xA3u)     /* used when in digitizer or mouse mode - i.e. when used in anything that isn't TH2 */
+#define CMD_FIND_I2C_ADDRESS                    (0xE0u)     /* returns the i2c address of aXiom, or reports as in SPI mode */
 
 //------------Mode switch Commands
-#define CMD_BLOCK_DIGITIZER_REPORTS     (0x87u)     /* enables/disables mouse reports */
-#define CMD_BLOCK_PRESS_REPORTS         (0xB1u)     /* enables/disables press reports */
-#define CMD_RESET_BRIDGE                (0xEFu)
-#define CMD_GET_PART_ID                 (0xF0u)     /* returns an id used by TH2 to load the correct dfu file */
-#define CMD_ENTER_BOOTLOADER            (0xF5u)
-#define CMD_GET_BRIDGE_MODE             (0xF9u)
-#define CMD_SWITCH_MODE_TBP_BASIC       (0xFAu)
-#define CMD_SWITCH_MODE_TBP_DIGITIZER   (0xFEu)
-#define CMD_SWITCH_MODE_TBP_ABS_MOUSE   (0xFFu)
+#define CMD_BLOCK_DIGITIZER_REPORTS             (0x87u)     /* enables/disables mouse reports */
+#define CMD_BLOCK_PRESS_REPORTS                 (0xB1u)     /* enables/disables press reports */
+#define CMD_RESET_BRIDGE                        (0xEFu)
+#define CMD_GET_PART_ID                         (0xF0u)     /* returns an id used by TH2 to load the correct dfu file */
+#define CMD_ENTER_BOOTLOADER                    (0xF5u)
+#define CMD_GET_BRIDGE_MODE                     (0xF9u)
+#define CMD_SWITCH_MODE_TBP_BASIC               (0xFAu)
+#define CMD_SWITCH_MODE_TBP_PRECISION_TOUCHPAD  (0xFBu)
+#define CMD_SWITCH_MODE_TBP_DIGITIZER           (0xFEu)
+#define CMD_SWITCH_MODE_TBP_ABS_MOUSE           (0xFFu)
 
 //------------Reserved Commands - Used by the PB005/7, and as such should not be used here
-#define CMD_IIC_DATA_2                      (0x52u) /* RESERVED - Used by the PB005/7 */
-#define CMD_IIC_DATA_3                      (0x53u) /* RESERVED - Used by the PB005/7 */
-#define CMD_IIC_DATA_4                      (0x54u) /* RESERVED - Used by the PB005/7 */
-#define CMD_IIC_DATA_5                      (0x55u) /* RESERVED - Used by the PB005/7 */
-#define CMD_IIC_DATA_256_EXTRA              (0x60u) /* RESERVED - Used by the PB005/7 */
-#define CMD_IIC_DATA_1_256                  (0x61u) /* RESERVED - Used by the PB005/7 */
-#define CMD_IIC_DATA_2_256                  (0x62u) /* RESERVED - Used by the PB005/7 */
-#define CMD_IIC_DATA_3_256                  (0x63u) /* RESERVED - Used by the PB005/7 */
-#define CMD_IIC_DATA_4_256                  (0x64u) /* RESERVED - Used by the PB005/7 */
-#define CMD_IIC_DATA_5_256                  (0x65u) /* RESERVED - Used by the PB005/7 */
-#define CMD_IIC_DATA_x256                   (0x68u) /* RESERVED - Used by the PB005/7 */
-#define CMD_IIC_DATA_1_x256                 (0x69u) /* RESERVED - Used by the PB005/7 */
-#define CMD_IIC_DATA_2_x256                 (0x6Au) /* RESERVED - Used by the PB005/7 */
-#define CMD_IIC_DATA_3_x256                 (0x6Bu) /* RESERVED - Used by the PB005/7 */
-#define CMD_IIC_DATA_4_x256                 (0x6Cu) /* RESERVED - Used by the PB005/7 */
-#define CMD_IIC_DATA_5_x256                 (0x6Du) /* RESERVED - Used by the PB005/7 */
-#define CMD_IIC_DATA_2_MP                   (0x72u) /* RESERVED - Used by the PB005/7 */
-#define CMD_CONFIG_READ_PINS                (0x81u) /* RESERVED - Used by the PB005/7 */
-#define CMD_GET_VOLTAGE                     (0xA0u) /* RESERVED - Used by the PB005/7 */
-#define CMD_CALL_SELFTEST                   (0xA1u) /* RESERVED - Used by the PB005/7 */
-#define CMD_CLOCK_PRESS                     (0xB0u) /* RESERVED - Used by the PB005/7 */
-#define CMD_RnR_PEAK_PRESS                  (0xC0u) /* RESERVED - Used by the PB005/7 */
-#define CMD_FLIP_MOUSE_AXES                 (0xD0u) /* RESERVED - Used by the PB005/7 */
-#define CMD_SET_IO_A                        (0xE4u) /* RESERVED - Used by the PB005/7 */
-#define CMD_GET_IO_A                        (0xE5u) /* RESERVED - Used by the PB005/7 */
-#define CMD_SET_IO_B                        (0xE6u) /* RESERVED - Used by the PB005/7 */
-#define CMD_GET_IO_B                        (0xE7u) /* RESERVED - Used by the PB005/7 */
-#define CMD_SET_IO_C                        (0xE8u) /* RESERVED - Used by the PB005/7 */
-#define CMD_GET_IO_C                        (0xE9u) /* RESERVED - Used by the PB005/7 */
-#define CMD_SAVE_CONFIGS_EEPROM             (0xEAu) /* RESERVED - Used by the PB005/7 */
-#define CMD_RESTORE_DEFAULT_CONFIGS         (0xEBu) /* RESERVED - Used by the PB005/7 */
-#define CMD_SWITCH_USB                      (0xF6u) /* RESERVED - Used by the PB005/7 */
-#define CMD_CHECK_UUT_USB_ACTIVITY          (0xF7u) /* RESERVED - Used by the PB005/7 */
-#define CMD_IIC_DATA_MASK                   (0xF8u) /* RESERVED - Used by the PB005/7 */
-#define CMD_SWITCH_MODE_DEBUG               (0xFCu) /* RESERVED - Used by the PB005/7 */
-#define CMD_SWITCH_MODE_SERIAL_DIGITIZER    (0xFDu) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_2                          (0x52u) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_3                          (0x53u) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_4                          (0x54u) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_5                          (0x55u) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_256_EXTRA                  (0x60u) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_1_256                      (0x61u) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_2_256                      (0x62u) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_3_256                      (0x63u) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_4_256                      (0x64u) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_5_256                      (0x65u) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_x256                       (0x68u) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_1_x256                     (0x69u) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_2_x256                     (0x6Au) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_3_x256                     (0x6Bu) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_4_x256                     (0x6Cu) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_5_x256                     (0x6Du) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_2_MP                       (0x72u) /* RESERVED - Used by the PB005/7 */
+#define CMD_CONFIG_READ_PINS                    (0x81u) /* RESERVED - Used by the PB005/7 */
+#define CMD_GET_VOLTAGE                         (0xA0u) /* RESERVED - Used by the PB005/7 */
+#define CMD_CALL_SELFTEST                       (0xA1u) /* RESERVED - Used by the PB005/7 */
+#define CMD_CLOCK_PRESS                         (0xB0u) /* RESERVED - Used by the PB005/7 */
+#define CMD_RnR_PEAK_PRESS                      (0xC0u) /* RESERVED - Used by the PB005/7 */
+#define CMD_FLIP_MOUSE_AXES                     (0xD0u) /* RESERVED - Used by the PB005/7 */
+#define CMD_SET_IO_A                            (0xE4u) /* RESERVED - Used by the PB005/7 */
+#define CMD_GET_IO_A                            (0xE5u) /* RESERVED - Used by the PB005/7 */
+#define CMD_SET_IO_B                            (0xE6u) /* RESERVED - Used by the PB005/7 */
+#define CMD_GET_IO_B                            (0xE7u) /* RESERVED - Used by the PB005/7 */
+#define CMD_SET_IO_C                            (0xE8u) /* RESERVED - Used by the PB005/7 */
+#define CMD_GET_IO_C                            (0xE9u) /* RESERVED - Used by the PB005/7 */
+#define CMD_SAVE_CONFIGS_EEPROM                 (0xEAu) /* RESERVED - Used by the PB005/7 */
+#define CMD_RESTORE_DEFAULT_CONFIGS             (0xEBu) /* RESERVED - Used by the PB005/7 */
+#define CMD_SWITCH_USB                          (0xF6u) /* RESERVED - Used by the PB005/7 */
+#define CMD_CHECK_UUT_USB_ACTIVITY              (0xF7u) /* RESERVED - Used by the PB005/7 */
+#define CMD_IIC_DATA_MASK                       (0xF8u) /* RESERVED - Used by the PB005/7 */
+#define CMD_SWITCH_MODE_DEBUG                   (0xFCu) /* RESERVED - Used by the PB005/7 */
+#define CMD_SWITCH_MODE_SERIAL_DIGITIZER        (0xFDu) /* RESERVED - Used by the PB005/7 */
 
 /*============ Local Variables ============*/
 
@@ -504,6 +505,22 @@ void ProcessTBPCommand()
             break;
         }
 //-------
+        case CMD_SWITCH_MODE_TBP_PRECISION_TOUCHPAD: //0xFB
+        {
+            if(pTBPCommandReport[1] == MODE_SWITCH_OK)
+            {
+                /* Change value of BridgeMode and store in flash (saves desired state when rebooted) */
+                Device_DeInit();
+                Store_BridgeMode_To_Flash(MODE_PRECISION_TOUCHPAD);
+            }
+            else
+            {
+                pTBPCommandReport[1] = INVALID_SETTINGS;
+            }
+
+            break;
+        }
+//-------
         case CMD_SWITCH_MODE_TBP_DIGITIZER: //0xFE
         {
             if(pTBPCommandReport[1] == MODE_SWITCH_OK)
@@ -526,8 +543,7 @@ void ProcessTBPCommand()
             {
                 /* Change value of BridgeMode and store in flash (saves desired state when rebooted) */
                 Device_DeInit();
-//                Store_BridgeMode_To_Flash(MODE_ABSOLUTE_MOUSE);
-                Store_BridgeMode_To_Flash(MODE_PRECISION_TOUCHPAD);
+                Store_BridgeMode_To_Flash(MODE_ABSOLUTE_MOUSE);
             }
             else
             {

@@ -403,7 +403,7 @@ void MultiPointDigitizer(void)
 
             usb_hid_mouse_report_in[(MAX_NUM_CONTACTS * DATABYTES_PER_TOUCH) + 1] = digitizer_timer & 0xFF;
             usb_hid_mouse_report_in[(MAX_NUM_CONTACTS * DATABYTES_PER_TOUCH) + 2] = digitizer_timer >> 8;
-            usb_hid_mouse_report_in[(MAX_NUM_CONTACTS * DATABYTES_PER_TOUCH) + 3] = MAX_NUM_CONTACTS;   // contact count, can be set between a value of 5 and 10 --> windows digitizer requires at least 5 touches to work correctly
+            usb_hid_mouse_report_in[(MAX_NUM_CONTACTS * DATABYTES_PER_TOUCH) + 3] = byNumTouches;   // contact count, can be set between a value of 0 and 5 --> windows digitizer requires at least 5 touches to work correctly
 
             u34_TCP_report[1] = 0x00;   // "consumes" the report so it isn't used again
 
@@ -651,7 +651,9 @@ static void ProcessTouchPad(void)
 
     usb_hid_mouse_report_in[0] = REPORT_TOUCHPAD; /* Report ID */
 
-    for(uint8_t byTouchNum = 1u; byTouchNum <= 1; byTouchNum++) /* perform same processing for each touch */
+    byNumTouches = CheckTouches();  // discovers how many touches are present - necessary for press
+
+    for(uint8_t byTouchNum = 1u; byTouchNum < 2; byTouchNum++) /* perform same processing for each touch */
     {
         if(GetXYZFromReport(DO_NOT_IGNORE_COORDS, byTouchNum))
         {
@@ -670,7 +672,7 @@ static void ProcessTouchPad(void)
             touched = 0;
         }
 
-        usb_hid_mouse_report_in[1] = (uint8_t)(byTouchNum << 2u) | touched;;
+        usb_hid_mouse_report_in[1] = (uint8_t)(byTouchNum << 2u) | touched;
         usb_hid_mouse_report_in[2] = (DigitizerXCoord >> 4) & 0xFF;
         usb_hid_mouse_report_in[3] = (DigitizerXCoord >> 4) >> 8;
         usb_hid_mouse_report_in[4] = (DigitizerYCoord >> 4) & 0xFF;
@@ -683,7 +685,7 @@ static void ProcessTouchPad(void)
     usb_hid_mouse_report_in[7] = digitizer_timer >> 8;
 
     // Contact count
-    usb_hid_mouse_report_in[8] = 5;
+    usb_hid_mouse_report_in[8] = byNumTouches;
 
     // Buttons
     usb_hid_mouse_report_in[9] = 0;

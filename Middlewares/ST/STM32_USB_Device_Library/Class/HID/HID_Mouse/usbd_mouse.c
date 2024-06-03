@@ -136,8 +136,9 @@ void MatchReportDescriptorToMode(USBD_HandleTypeDef *pdev, uint8_t BridgeMode)
             USBD_COMPOSITE_HID_CfgDesc[90] = USBD_MOUSE_REL_REPORT_DESC_SIZE_HI; // HIBYTE
 
             /* report size */
-            USBD_COMPOSITE_HID_CfgDesc[95] = LOBYTE(MOUSE_REL_REPORT_LENGTH); // LOBYTE
-            USBD_COMPOSITE_HID_CfgDesc[96] = HIBYTE(MOUSE_REL_REPORT_LENGTH); // HIBYTE
+            /* Can send either mouse or touch-pad reports, report the largest report size of them */
+            USBD_COMPOSITE_HID_CfgDesc[95] = LOBYTE(MOUSE_TOUCHPAD_REPORT_LENGTH); // LOBYTE
+            USBD_COMPOSITE_HID_CfgDesc[96] = HIBYTE(MOUSE_TOUCHPAD_REPORT_LENGTH); // HIBYTE
 
             /* point to correct descriptor */
             ((USBD_MOUSE_HID_ItfTypeDef *)pdev->pClassSpecificInterfaceMOUSE)->pReport = mouse_rel_ReportDesc_FS;
@@ -197,7 +198,7 @@ void GetMouseDescriptorLength(uint8_t BridgeMode)
 // CUSTOMISED - alters the number of interfaces presented to host --> enables/disables the mouse interface
 void ConfigureCfgDescriptor(uint8_t MousMode)
 {
-    if(BridgeMode == MODE_ABSOLUTE_MOUSE || BridgeMode == MODE_PRECISION_TOUCHPAD || BridgeMode == MODE_PARALLEL_DIGITIZER)  // mouse/digitizer enabled
+    if(BridgeMode == MODE_ABSOLUTE_MOUSE || BridgeMode == MODE_PRECISION_TOUCHPAD || BridgeMode == MODE_PARALLEL_DIGITIZER)
     {
         boMouseEnabled = true;
         NumInterfaces = 3;
