@@ -41,6 +41,9 @@
 
 #define USBHID_THQL_BLOB_SIZE           (256)
 
+#define DIGITIZER_MAX_CONTACT_CT        (0x05U)
+#define PRECISION_TPAD_MAX_CONTACT_CT   (0x05U)
+
 /*============ Exported Types ============*/
 
 /*============ Exported Macros ============*/
@@ -54,7 +57,7 @@ extern uint8_t usb_hid_mouse_report_in[USBD_MOUSE_HID_REPORT_IN_SIZE];
 /** MOUSEHID Interface callback. */
 extern USBD_MOUSE_HID_ItfTypeDef USBD_MouseHID_fops_FS;
 extern uint8_t mouse_abs_ReportDesc_FS                  [USBD_MOUSE_ABS_REPORT_DESC_SIZE];
-extern uint8_t mouse_rel_ReportDesc_FS                  [USBD_MOUSE_REL_REPORT_DESC_SIZE];
+extern uint8_t mouse_rel_ReportDesc_FS                  [USBD_TPAD_REPORT_DESC_SIZE];
 extern uint8_t mouse_parallel_digitizer_ReportDesc_FS   [USBD_MOUSE_PAR_DIGITIZER_DESC_SIZE];
 
 /*============ Exported Functions ============*/

@@ -49,12 +49,14 @@
 
 /*============ Defines ============*/
 #define U41_REPORT                  (0x41)
-#define MAX_NUM_CONTACTS            (5)
 #define TOUCH_NUMBER                (1)
 
-#define CONFIDENCE                  (0x04)
-#define TIP_SWITCH                  (0x01)
-#define IN_RANGE                    (0x02)
+#define DIGI_CONFIDENCE             (0x04)
+#define DIGI_TIP_SWITCH             (0x01)
+#define DIGI_IN_RANGE               (0x02)
+
+#define TPAD_TIP_SWITCH             (0x02)
+#define TPAD_CONFIDENCE             (0x01)
 
 #define X_COORD_LSB                 (2)
 #define X_COORD_MSB                 (3)
@@ -367,22 +369,22 @@ void MultiPointDigitizer(void)
         {
             usb_hid_mouse_report_in[0] = 1; //report number --> relates to the report number found in the report descriptor (allows windows to differentiate between different connected devices)
 
-            for(byTouchNum = 1u; byTouchNum <= MAX_NUM_CONTACTS; byTouchNum++) // perform same processing for each touch
+            for(byTouchNum = 1u; byTouchNum <= DIGITIZER_MAX_CONTACT_CT; byTouchNum++) // perform same processing for each touch
             {
                 if(GetXYZFromReport(DO_NOT_IGNORE_COORDS, byTouchNum))
                 {
                     if(byReportZ_lsb >= 0x80)   // if z coordinate is a negative value it indicates there is a hover or prox
                     {
-                        touched = CONFIDENCE | IN_RANGE; // hover present --> set in range bit
+                        touched = DIGI_CONFIDENCE | DIGI_IN_RANGE; // hover present --> set in range bit
                     }
                     else
                     {
-                        touched = CONFIDENCE | IN_RANGE | TIP_SWITCH; // touch present --> set tip switch bit
+                        touched = DIGI_CONFIDENCE | DIGI_IN_RANGE | DIGI_TIP_SWITCH; // touch present --> set tip switch bit
                     }
                 }
                 else
                 {
-                    touched = CONFIDENCE;
+                    touched = DIGI_CONFIDENCE;
                 }
 
                 // translates the pressure value into the range 0-1024 (prevents Windows from messing with our values!)
@@ -401,9 +403,9 @@ void MultiPointDigitizer(void)
 
             digitizer_timer = wd100usTick; // Windows expects this to increment of 100 microseconds - so we do that!
 
-            usb_hid_mouse_report_in[(MAX_NUM_CONTACTS * DATABYTES_PER_TOUCH) + 1] = digitizer_timer & 0xFF;
-            usb_hid_mouse_report_in[(MAX_NUM_CONTACTS * DATABYTES_PER_TOUCH) + 2] = digitizer_timer >> 8;
-            usb_hid_mouse_report_in[(MAX_NUM_CONTACTS * DATABYTES_PER_TOUCH) + 3] = byNumTouches;   // contact count, can be set between a value of 0 and 5 --> windows digitizer requires at least 5 touches to work correctly
+            usb_hid_mouse_report_in[(DIGITIZER_MAX_CONTACT_CT * DATABYTES_PER_TOUCH) + 1] = digitizer_timer & 0xFF;
+            usb_hid_mouse_report_in[(DIGITIZER_MAX_CONTACT_CT * DATABYTES_PER_TOUCH) + 2] = digitizer_timer >> 8;
+            usb_hid_mouse_report_in[(DIGITIZER_MAX_CONTACT_CT * DATABYTES_PER_TOUCH) + 3] = byNumTouches;   // contact count, can be set between a value of 0 and 5 --> windows digitizer requires at least 5 touches to work correctly
 
             u34_TCP_report[1] = 0x00;   // "consumes" the report so it isn't used again
 
@@ -646,49 +648,59 @@ static void ProcessRelativeMouse(void)
 
 static void ProcessTouchPad(void)
 {
-    uint8_t touched = 0;
-    uint16_t digitizer_timer = 0;
+    static uint8_t byNumTouchesWas = 0;
+    static uint8_t byNumTouchesIs = 0;
+
+    byNumTouchesWas = byNumTouchesIs;
+    byNumTouchesIs = CheckTouches();
 
     usb_hid_mouse_report_in[0] = REPORT_TOUCHPAD; /* Report ID */
 
-    byNumTouches = CheckTouches();  // discovers how many touches are present - necessary for press
-
-    for(uint8_t byTouchNum = 1u; byTouchNum < 2; byTouchNum++) /* perform same processing for each touch */
+    for(uint8_t byTouchNum = 0U; byTouchNum < PRECISION_TPAD_MAX_CONTACT_CT; byTouchNum++) /* perform same processing for each touch */
     {
-        if(GetXYZFromReport(DO_NOT_IGNORE_COORDS, byTouchNum))
+        uint8_t byCorrectedTouchNum = byTouchNum + 1;
+        uint8_t ArrayIndexOffset = (byTouchNum * 5U);
+        uint8_t touch_state = 0;
+
+        /* Negative Z value indicates the target is a hover or prox */
+        if(GetXYZFromReport(DO_NOT_IGNORE_COORDS, byCorrectedTouchNum) && (byReportZ_lsb < 0x80))
         {
-            if(byReportZ_lsb >= 0x80) /* Negative value it indicates there is a hover or prox */
-            {
-                touched = 0;
-            }
-            else
-            {
-//                touched = CONFIDENCE | IN_RANGE | TIP_SWITCH; // touch present
-                touched = 0b10 | 0b01;
-            }
+            touch_state = TPAD_TIP_SWITCH | TPAD_CONFIDENCE;
+
+            usb_hid_mouse_report_in[ArrayIndexOffset + 2] = (DigitizerXCoord >> 4) & 0xFF;
+            usb_hid_mouse_report_in[ArrayIndexOffset + 3] = (DigitizerXCoord >> 4) >> 8;
+            usb_hid_mouse_report_in[ArrayIndexOffset + 4] = (DigitizerYCoord >> 4) & 0xFF;
+            usb_hid_mouse_report_in[ArrayIndexOffset + 5] = (DigitizerYCoord >> 4) >> 8;
         }
         else
         {
-            touched = 0;
+            touch_state = TPAD_CONFIDENCE;
         }
 
-        usb_hid_mouse_report_in[1] = (uint8_t)(byTouchNum << 2u) | touched;
-        usb_hid_mouse_report_in[2] = (DigitizerXCoord >> 4) & 0xFF;
-        usb_hid_mouse_report_in[3] = (DigitizerXCoord >> 4) >> 8;
-        usb_hid_mouse_report_in[4] = (DigitizerYCoord >> 4) & 0xFF;
-        usb_hid_mouse_report_in[5] = (DigitizerYCoord >> 4) >> 8;
+        usb_hid_mouse_report_in[ArrayIndexOffset + 1] = (uint8_t)(byTouchNum << 2u) | touch_state;
     }
 
     // Scan time
-    digitizer_timer = wd100usTick; // Windows expects this to increment of 100 microseconds - so we do that!
-    usb_hid_mouse_report_in[6] = digitizer_timer & 0xFF;
-    usb_hid_mouse_report_in[7] = digitizer_timer >> 8;
+    /* Windows expects this to increment of 100 microseconds */
+    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 1] = wd100usTick & 0xFF;
+    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 2] = wd100usTick >> 8;
 
     // Contact count
-    usb_hid_mouse_report_in[8] = byNumTouches;
+    if (byNumTouchesWas > byNumTouchesIs)
+    {
+        usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 3] = byNumTouchesWas;
+    }
+    else
+    {
+        usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 3] = byNumTouchesIs;
+    }
+//    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 3] = 5;
+//    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 3] = byNumTouches;
+//    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 3] = (byNumTouchesIs == 0) ? 1 : byNumTouchesIs;
 
     // Buttons
-    usb_hid_mouse_report_in[9] = 0;
+    /* Button clicks (press) are controlled by us, the host handles 'tap' (touch) clicks */
+    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 4] = 0;
 
     u34_TCP_report[1] = 0x00;   // "consumes" the report so it isn't used again
 

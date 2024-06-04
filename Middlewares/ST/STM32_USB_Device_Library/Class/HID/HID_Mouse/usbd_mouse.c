@@ -132,8 +132,8 @@ void MatchReportDescriptorToMode(USBD_HandleTypeDef *pdev, uint8_t BridgeMode)
 
         case MODE_PRECISION_TOUCHPAD:
             /* report descriptor length */
-            USBD_COMPOSITE_HID_CfgDesc[89] = USBD_MOUSE_REL_REPORT_DESC_SIZE_LO; // LOBYTE
-            USBD_COMPOSITE_HID_CfgDesc[90] = USBD_MOUSE_REL_REPORT_DESC_SIZE_HI; // HIBYTE
+            USBD_COMPOSITE_HID_CfgDesc[89] = USBD_TPAD_REPORT_DESC_SIZE_LO; // LOBYTE
+            USBD_COMPOSITE_HID_CfgDesc[90] = USBD_TPAD_REPORT_DESC_SIZE_HI; // HIBYTE
 
             /* report size */
             /* Can send either mouse or touch-pad reports, report the largest report size of them */

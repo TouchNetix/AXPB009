@@ -33,8 +33,7 @@
 #include "Flash_Control.h"
 
 /*============ Defines ============*/
-#define DIGITIZER_MAX_CONTACT_CT        (0x05U)
-#define PRECISION_TPAD_MAX_CONTACT_CT   (0x01U)
+
 
 /*============ Macros ============*/
 
@@ -48,7 +47,6 @@ static int8_t MOUSE_HID_DeInit_FS(void);
 static int8_t MOUSE_HID_OutEvent_FS(uint8_t* state);
 static int8_t MOUSE_HID_SetFeature_FS(uint8_t event_idx, uint8_t* buffer);
 static int8_t MOUSE_HID_GetFeature_FS(uint8_t event_idx, uint8_t* buffer, uint16_t* length);
-static uint16_t MOUSE_HID_FeatureReportLength_FS(uint8_t event_idx);
 
 /*============ Exported Variables ============*/
 bool    boMouseReportToSend = 0;
@@ -90,7 +88,7 @@ __ALIGN_BEGIN uint8_t mouse_abs_ReportDesc_FS[USBD_MOUSE_ABS_REPORT_DESC_SIZE] _
 };
 
 /* USB Mouse HID Report Descriptor - Relative mouse mode */
-__ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_MOUSE_REL_REPORT_DESC_SIZE] __ALIGN_END =
+__ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_TPAD_REPORT_DESC_SIZE] __ALIGN_END =
 {
 /* ======= TOUCHPAD ======= */
     0x05, 0x0D,                         // USAGE_PAGE (Digitizers)
@@ -109,13 +107,134 @@ __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_MOUSE_REL_REPORT_DESC_SIZE] _
     0x75, 0x01,                         //     REPORT_SIZE (1)
     0x81, 0x02,                         //     INPUT (Data,Var,Abs)
     0x95, 0x01,                         //     REPORT_COUNT (1)
-    0x75, 0x02,                         //     REPORT_SIZE (2)
-    0x25, 0x02,                         //     LOGICAL_MAXIMUM (2)
+    0x75, 0x06,                         //     REPORT_SIZE (6)
+    0x25, PRECISION_TPAD_MAX_CONTACT_CT,//     LOGICAL_MAXIMUM
     0x09, 0x51,                         //     USAGE (Contact Number Identifier)
     0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0x05, 0x01,                         //     USAGE_PAGE (Generic Desk..
+    0x15, 0x00,                         //     LOGICAL_MINIMUM (0)
+    0x26, 0xFF, 0x0F,                   //     LOGICAL_MAXIMUM (4095)
+    0x75, 0x10,                         //     REPORT_SIZE (16)
+    0x55, 0x0E,                         //     UNIT_EXPONENT (-2)
+    0x65, 0x13,                         //     UNIT(Inch,EngLinear)
+    0x09, 0x30,                         //     USAGE (X)
+    0x35, 0x00,                         //     PHYSICAL_MINIMUM (0)
+    0x46, 0x90, 0x01,                   //     PHYSICAL_MAXIMUM (400)
+    0x95, 0x01,                         //     REPORT_COUNT (1)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0x46, 0x13, 0x01,                   //     PHYSICAL_MAXIMUM (275)
+    0x09, 0x31,                         //     USAGE (Y)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0xC0,                               //   END_COLLECTION
+
+    // SECOND CONTACT
+    0x09, 0x22,                         //   USAGE (Finger)
+    0xA1, 0x02,                         //   COLLECTION (Logical)
+    0x15, 0x00,                         //     LOGICAL_MINIMUM (0)
+    0x25, 0x01,                         //     LOGICAL_MAXIMUM (1)
+    0x09, 0x47,                         //     USAGE (Confidence)
+    0x09, 0x42,                         //     USAGE (Tip switch)
+    0x95, 0x02,                         //     REPORT_COUNT (2)
     0x75, 0x01,                         //     REPORT_SIZE (1)
-    0x95, 0x04,                         //     REPORT_COUNT (4)
-    0x81, 0x03,                         //     INPUT (Cnst,Var,Abs)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0x95, 0x01,                         //     REPORT_COUNT (1)
+    0x75, 0x06,                         //     REPORT_SIZE (6)
+    0x25, PRECISION_TPAD_MAX_CONTACT_CT,//     LOGICAL_MAXIMUM
+    0x09, 0x51,                         //     USAGE (Contact Number Identifier)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0x05, 0x01,                         //     USAGE_PAGE (Generic Desk..
+    0x15, 0x00,                         //     LOGICAL_MINIMUM (0)
+    0x26, 0xFF, 0x0F,                   //     LOGICAL_MAXIMUM (4095)
+    0x75, 0x10,                         //     REPORT_SIZE (16)
+    0x55, 0x0E,                         //     UNIT_EXPONENT (-2)
+    0x65, 0x13,                         //     UNIT(Inch,EngLinear)
+    0x09, 0x30,                         //     USAGE (X)
+    0x35, 0x00,                         //     PHYSICAL_MINIMUM (0)
+    0x46, 0x90, 0x01,                   //     PHYSICAL_MAXIMUM (400)
+    0x95, 0x01,                         //     REPORT_COUNT (1)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0x46, 0x13, 0x01,                   //     PHYSICAL_MAXIMUM (275)
+    0x09, 0x31,                         //     USAGE (Y)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0xC0,                               //   END_COLLECTION
+
+    // THIRD CONTACT
+    0x09, 0x22,                         //   USAGE (Finger)
+    0xA1, 0x02,                         //   COLLECTION (Logical)
+    0x15, 0x00,                         //     LOGICAL_MINIMUM (0)
+    0x25, 0x01,                         //     LOGICAL_MAXIMUM (1)
+    0x09, 0x47,                         //     USAGE (Confidence)
+    0x09, 0x42,                         //     USAGE (Tip switch)
+    0x95, 0x02,                         //     REPORT_COUNT (2)
+    0x75, 0x01,                         //     REPORT_SIZE (1)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0x95, 0x01,                         //     REPORT_COUNT (1)
+    0x75, 0x06,                         //     REPORT_SIZE (6)
+    0x25, PRECISION_TPAD_MAX_CONTACT_CT,//     LOGICAL_MAXIMUM
+    0x09, 0x51,                         //     USAGE (Contact Number Identifier)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0x05, 0x01,                         //     USAGE_PAGE (Generic Desk..
+    0x15, 0x00,                         //     LOGICAL_MINIMUM (0)
+    0x26, 0xFF, 0x0F,                   //     LOGICAL_MAXIMUM (4095)
+    0x75, 0x10,                         //     REPORT_SIZE (16)
+    0x55, 0x0E,                         //     UNIT_EXPONENT (-2)
+    0x65, 0x13,                         //     UNIT(Inch,EngLinear)
+    0x09, 0x30,                         //     USAGE (X)
+    0x35, 0x00,                         //     PHYSICAL_MINIMUM (0)
+    0x46, 0x90, 0x01,                   //     PHYSICAL_MAXIMUM (400)
+    0x95, 0x01,                         //     REPORT_COUNT (1)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0x46, 0x13, 0x01,                   //     PHYSICAL_MAXIMUM (275)
+    0x09, 0x31,                         //     USAGE (Y)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0xC0,                               //   END_COLLECTION
+
+    // FOURTH CONTACT
+    0x09, 0x22,                         //   USAGE (Finger)
+    0xA1, 0x02,                         //   COLLECTION (Logical)
+    0x15, 0x00,                         //     LOGICAL_MINIMUM (0)
+    0x25, 0x01,                         //     LOGICAL_MAXIMUM (1)
+    0x09, 0x47,                         //     USAGE (Confidence)
+    0x09, 0x42,                         //     USAGE (Tip switch)
+    0x95, 0x02,                         //     REPORT_COUNT (2)
+    0x75, 0x01,                         //     REPORT_SIZE (1)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0x95, 0x01,                         //     REPORT_COUNT (1)
+    0x75, 0x06,                         //     REPORT_SIZE (6)
+    0x25, PRECISION_TPAD_MAX_CONTACT_CT,//     LOGICAL_MAXIMUM
+    0x09, 0x51,                         //     USAGE (Contact Number Identifier)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0x05, 0x01,                         //     USAGE_PAGE (Generic Desk..
+    0x15, 0x00,                         //     LOGICAL_MINIMUM (0)
+    0x26, 0xFF, 0x0F,                   //     LOGICAL_MAXIMUM (4095)
+    0x75, 0x10,                         //     REPORT_SIZE (16)
+    0x55, 0x0E,                         //     UNIT_EXPONENT (-2)
+    0x65, 0x13,                         //     UNIT(Inch,EngLinear)
+    0x09, 0x30,                         //     USAGE (X)
+    0x35, 0x00,                         //     PHYSICAL_MINIMUM (0)
+    0x46, 0x90, 0x01,                   //     PHYSICAL_MAXIMUM (400)
+    0x95, 0x01,                         //     REPORT_COUNT (1)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0x46, 0x13, 0x01,                   //     PHYSICAL_MAXIMUM (275)
+    0x09, 0x31,                         //     USAGE (Y)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0xC0,                               //   END_COLLECTION
+
+    // FIFTH CONTACT
+    0x09, 0x22,                         //   USAGE (Finger)
+    0xA1, 0x02,                         //   COLLECTION (Logical)
+    0x15, 0x00,                         //     LOGICAL_MINIMUM (0)
+    0x25, 0x01,                         //     LOGICAL_MAXIMUM (1)
+    0x09, 0x47,                         //     USAGE (Confidence)
+    0x09, 0x42,                         //     USAGE (Tip switch)
+    0x95, 0x02,                         //     REPORT_COUNT (2)
+    0x75, 0x01,                         //     REPORT_SIZE (1)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
+    0x95, 0x01,                         //     REPORT_COUNT (1)
+    0x75, 0x06,                         //     REPORT_SIZE (6)
+    0x25, PRECISION_TPAD_MAX_CONTACT_CT,//     LOGICAL_MAXIMUM
+    0x09, 0x51,                         //     USAGE (Contact Number Identifier)
+    0x81, 0x02,                         //     INPUT (Data,Var,Abs)
     0x05, 0x01,                         //     USAGE_PAGE (Generic Desk..
     0x15, 0x00,                         //     LOGICAL_MINIMUM (0)
     0x26, 0xFF, 0x0F,                   //     LOGICAL_MAXIMUM (4095)
