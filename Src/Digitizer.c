@@ -105,27 +105,36 @@ struct RelMouse_AxisInfo
     bool    CursorHasMovedThisFrame;
 };
 
-struct RelativeMouse
+struct st_RelativeMouse
 {
     struct RelMouse_AxisInfo AxisX;
     struct RelMouse_AxisInfo AxisY;
 };
 
-struct Touchpad
+struct st_TargetInfo
 {
+    bool        PresentLastFrame;
+    bool        PresentThisFrame;
+    uint16_t    XCoord;
+    uint16_t    YCoord;
+    int8_t      ZValue;
+};
 
+struct st_Touchpad
+{
+    struct st_TargetInfo    Target[PRECISION_TPAD_MAX_CONTACT_CT];
 };
 
 struct TouchPadInfo
 {
-    // Controls (set by the host)
+    // Controls (set by the host via SET_FEATURE report)
     enum en_InputReportingMode  InputMode;      /* Relative mouse mode or Windows Precision Touchpad mode */
     bool                        SurfaceSwitch;  /* Indicates if surface contacts should be reported */
     bool                        ButtonSwitch;   /* Indicates if button states should be reported */
 
     // Mouse and Touchpad info
-    struct RelativeMouse        RelMouseInfo;
-    struct Touchpad             TouchpadInfo;
+    struct st_RelativeMouse     RelMouseInfo;
+    struct st_Touchpad          TouchpadInfo;
 };
 
 /*============ Local Variables ============*/
@@ -648,59 +657,131 @@ static void ProcessRelativeMouse(void)
 
 static void ProcessTouchPad(void)
 {
-    static uint8_t byNumTouchesWas = 0;
-    static uint8_t byNumTouchesIs = 0;
+//    static uint8_t byNumTouchesWas = 0;
+//    static uint8_t byNumTouchesIs = 0;
+//
+//    byNumTouchesWas = byNumTouchesIs;
+//    byNumTouchesIs = CheckTouches();
 
-    byNumTouchesWas = byNumTouchesIs;
-    byNumTouchesIs = CheckTouches();
-
-    usb_hid_mouse_report_in[0] = REPORT_TOUCHPAD; /* Report ID */
-
-    for(uint8_t byTouchNum = 0U; byTouchNum < PRECISION_TPAD_MAX_CONTACT_CT; byTouchNum++) /* perform same processing for each touch */
+    // First, store all target info locally (even if the target is not present).
+    for (uint8_t byTouchNum = 0U; byTouchNum < PRECISION_TPAD_MAX_CONTACT_CT; byTouchNum++)
     {
         uint8_t byCorrectedTouchNum = byTouchNum + 1;
-        uint8_t ArrayIndexOffset = (byTouchNum * 5U);
-        uint8_t touch_state = 0;
+        uint8_t TouchIsPresent = GetXYZFromReport(DO_NOT_IGNORE_COORDS, byCorrectedTouchNum);
 
-        /* Negative Z value indicates the target is a hover or prox */
-        if(GetXYZFromReport(DO_NOT_IGNORE_COORDS, byCorrectedTouchNum) && (byReportZ_lsb < 0x80))
+        g_TouchPadInfo.TouchpadInfo.Target[byTouchNum].PresentLastFrame = g_TouchPadInfo.TouchpadInfo.Target[byTouchNum].PresentThisFrame;
+        g_TouchPadInfo.TouchpadInfo.Target[byTouchNum].PresentThisFrame = (TouchIsPresent != 0) ? true : false;
+        g_TouchPadInfo.TouchpadInfo.Target[byTouchNum].XCoord = DigitizerXCoord;
+        g_TouchPadInfo.TouchpadInfo.Target[byTouchNum].YCoord = DigitizerYCoord;
+        g_TouchPadInfo.TouchpadInfo.Target[byTouchNum].ZValue = (int8_t)byReportZ_lsb;
+    }
+
+    // Then, populate the report making sure to skip over any targets that are not present.
+    uint8_t ContactCount = 0;
+    uint8_t touch_state = 0;
+    uint8_t ArrayIndexOffset = 0;
+    for (uint8_t byTouchNum = 0U; byTouchNum < PRECISION_TPAD_MAX_CONTACT_CT; byTouchNum++)
+    {
+        struct st_TargetInfo *pTarget = &g_TouchPadInfo.TouchpadInfo.Target[byTouchNum];
+
+        if (pTarget->PresentThisFrame == true)
         {
             touch_state = TPAD_TIP_SWITCH | TPAD_CONFIDENCE;
+            usb_hid_mouse_report_in[ArrayIndexOffset + 1] = (uint8_t)(byTouchNum << 2u) | touch_state;
+            usb_hid_mouse_report_in[ArrayIndexOffset + 2] = (pTarget->XCoord >> 4) & 0xFF;
+            usb_hid_mouse_report_in[ArrayIndexOffset + 3] = (pTarget->XCoord >> 4) >> 8;
+            usb_hid_mouse_report_in[ArrayIndexOffset + 4] = (pTarget->YCoord >> 4) & 0xFF;
+            usb_hid_mouse_report_in[ArrayIndexOffset + 5] = (pTarget->YCoord >> 4) >> 8;
+            ArrayIndexOffset += 5;
 
-            usb_hid_mouse_report_in[ArrayIndexOffset + 2] = (DigitizerXCoord >> 4) & 0xFF;
-            usb_hid_mouse_report_in[ArrayIndexOffset + 3] = (DigitizerXCoord >> 4) >> 8;
-            usb_hid_mouse_report_in[ArrayIndexOffset + 4] = (DigitizerYCoord >> 4) & 0xFF;
-            usb_hid_mouse_report_in[ArrayIndexOffset + 5] = (DigitizerYCoord >> 4) >> 8;
+            ContactCount++;
+        }
+        else if ((pTarget->PresentThisFrame == false) && (pTarget->PresentLastFrame == true))
+        {
+            // Contact has been removed since last frame.
+            // Clear the tip switch bit but don't decrement contact count until next frame.
+            touch_state = TPAD_CONFIDENCE;
+            usb_hid_mouse_report_in[ArrayIndexOffset + 1] = (uint8_t)(byTouchNum << 2u) | touch_state;
+            usb_hid_mouse_report_in[ArrayIndexOffset + 2] = (pTarget->XCoord >> 4) & 0xFF;
+            usb_hid_mouse_report_in[ArrayIndexOffset + 3] = (pTarget->XCoord >> 4) >> 8;
+            usb_hid_mouse_report_in[ArrayIndexOffset + 4] = (pTarget->YCoord >> 4) & 0xFF;
+            usb_hid_mouse_report_in[ArrayIndexOffset + 5] = (pTarget->YCoord >> 4) >> 8;
+            ArrayIndexOffset += 5;
+
+            ContactCount++;
         }
         else
         {
-            touch_state = TPAD_CONFIDENCE;
+            // Contact has been absent for at least 2 frames, so do not add to contact count
         }
-
-        usb_hid_mouse_report_in[ArrayIndexOffset + 1] = (uint8_t)(byTouchNum << 2u) | touch_state;
     }
+
+    // Report ID
+    usb_hid_mouse_report_in[0] = REPORT_TOUCHPAD;
 
     // Scan time
-    /* Windows expects this to increment of 100 microseconds */
-    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 1] = wd100usTick & 0xFF;
-    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 2] = wd100usTick >> 8;
+    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 1] = wd100usTick & 0xFF; /* LSB */
+    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 2] = wd100usTick >> 8; /* MSB */
 
-    // Contact count
-    if (byNumTouchesWas > byNumTouchesIs)
-    {
-        usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 3] = byNumTouchesWas;
-    }
-    else
-    {
-        usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 3] = byNumTouchesIs;
-    }
-//    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 3] = 5;
-//    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 3] = byNumTouches;
-//    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 3] = (byNumTouchesIs == 0) ? 1 : byNumTouchesIs;
+    // Contact Count
+    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 3] = ContactCount;
 
     // Buttons
-    /* Button clicks (press) are controlled by us, the host handles 'tap' (touch) clicks */
+    // Press clicks (pressure) are controlled by us, the host handles 'tap' (touch) clicks
     usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 4] = 0;
+
+
+//    usb_hid_mouse_report_in[0] = REPORT_TOUCHPAD; /* Report ID */
+//
+//    uint8_t ArrayIndexOffset = 0;
+//    for(uint8_t byTouchNum = 0U; byTouchNum < PRECISION_TPAD_MAX_CONTACT_CT; byTouchNum++)
+//    {
+//        uint8_t byCorrectedTouchNum = byTouchNum + 1;
+////        uint8_t ArrayIndexOffset = (byTouchNum * 5U);
+//        uint8_t touch_state = 0;
+//
+//        uint8_t TouchIsPresent = GetXYZFromReport(DO_NOT_IGNORE_COORDS, byCorrectedTouchNum);
+//
+//        if (TouchIsPresent)
+//        {
+//            touch_state = TPAD_TIP_SWITCH | TPAD_CONFIDENCE;
+//        }
+//        else
+//        {
+//            touch_state = TPAD_CONFIDENCE;
+//        }
+//
+//        /* Negative Z value indicates the target is a hover or prox */
+//        if(TouchIsPresent && (byReportZ_lsb < 0x80))
+//        {
+//            usb_hid_mouse_report_in[ArrayIndexOffset + 1] = (uint8_t)(byTouchNum << 2u) | touch_state;
+//            usb_hid_mouse_report_in[ArrayIndexOffset + 2] = (DigitizerXCoord >> 4) & 0xFF;
+//            usb_hid_mouse_report_in[ArrayIndexOffset + 3] = (DigitizerXCoord >> 4) >> 8;
+//            usb_hid_mouse_report_in[ArrayIndexOffset + 4] = (DigitizerYCoord >> 4) & 0xFF;
+//            usb_hid_mouse_report_in[ArrayIndexOffset + 5] = (DigitizerYCoord >> 4) >> 8;
+//            ArrayIndexOffset += 5;
+//        }
+//    }
+//
+//    // Scan time
+//    /* Windows expects this to increment of 100 microseconds */
+//    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 1] = wd100usTick & 0xFF;
+//    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 2] = wd100usTick >> 8;
+//
+//    // Contact count
+//    // Lags 1 frame behind when contacts are removed, Windows needs to see the tip-switch turned off
+//    if (byNumTouchesWas > byNumTouchesIs)
+//    {
+//        usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 3] = byNumTouchesWas;
+//    }
+//    else
+//    {
+//        usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 3] = byNumTouchesIs;
+//    }
+//
+//    // Buttons
+//    /* Button clicks (press) are controlled by us, the host handles 'tap' (touch) clicks */
+//    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 4] = 0;
 
     u34_TCP_report[1] = 0x00;   // "consumes" the report so it isn't used again
 
