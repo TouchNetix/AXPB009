@@ -126,6 +126,7 @@ __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_TPAD_REPORT_DESC_SIZE] __ALIG
     0x09, 0x31,                         //     USAGE (Y)
     0x81, 0x02,                         //     INPUT (Data,Var,Abs)
     0xC0,                               //   END_COLLECTION
+    0x05, 0x0D,                         //   USAGE_PAGE (Digitizers)
 
     // SECOND CONTACT
     0x09, 0x22,                         //   USAGE (Finger)
@@ -157,6 +158,7 @@ __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_TPAD_REPORT_DESC_SIZE] __ALIG
     0x09, 0x31,                         //     USAGE (Y)
     0x81, 0x02,                         //     INPUT (Data,Var,Abs)
     0xC0,                               //   END_COLLECTION
+    0x05, 0x0D,                         //   USAGE_PAGE (Digitizers)
 
     // THIRD CONTACT
     0x09, 0x22,                         //   USAGE (Finger)
@@ -188,6 +190,7 @@ __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_TPAD_REPORT_DESC_SIZE] __ALIG
     0x09, 0x31,                         //     USAGE (Y)
     0x81, 0x02,                         //     INPUT (Data,Var,Abs)
     0xC0,                               //   END_COLLECTION
+    0x05, 0x0D,                         //   USAGE_PAGE (Digitizers)
 
     // FOURTH CONTACT
     0x09, 0x22,                         //   USAGE (Finger)
@@ -219,6 +222,7 @@ __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_TPAD_REPORT_DESC_SIZE] __ALIG
     0x09, 0x31,                         //     USAGE (Y)
     0x81, 0x02,                         //     INPUT (Data,Var,Abs)
     0xC0,                               //   END_COLLECTION
+    0x05, 0x0D,                         //   USAGE_PAGE (Digitizers)
 
     // FIFTH CONTACT
     0x09, 0x22,                         //   USAGE (Finger)
@@ -250,6 +254,7 @@ __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_TPAD_REPORT_DESC_SIZE] __ALIG
     0x09, 0x31,                         //     USAGE (Y)
     0x81, 0x02,                         //     INPUT (Data,Var,Abs)
     0xC0,                               //   END_COLLECTION
+    0x05, 0x0D,                         //   USAGE_PAGE (Digitizers)
 
     // SCAN TIME
     0x55, 0x0C,                         //   UNIT_EXPONENT (-4)
@@ -272,13 +277,11 @@ __ALIGN_BEGIN uint8_t mouse_rel_ReportDesc_FS[USBD_TPAD_REPORT_DESC_SIZE] __ALIG
     // BUTTONS
     0x05, 0x09,                         //   USAGE_PAGE (Button)
     0x09, 0x01,                         //   USAGE_(Button 1)
-    0x09, 0x02,                         //   USAGE_(Button 2)
-    0x09, 0x03,                         //   USAGE_(Button 3)
     0x25, 0x01,                         //   LOGICAL_MAXIMUM (1)
     0x75, 0x01,                         //   REPORT_SIZE (1)
-    0x95, 0x03,                         //   REPORT_COUNT (3)
+    0x95, 0x03,                         //   REPORT_COUNT (1)
     0x81, 0x02,                         //   INPUT (Data,Var,Abs)
-    0x95, 0x05,                         //   REPORT_COUNT (5)
+    0x95, 0x05,                         //   REPORT_COUNT (7)
     0x81, 0x03,                         //   INPUT (Cnst,Var,Abs)
 
     // MAXIMUM CONTACTS

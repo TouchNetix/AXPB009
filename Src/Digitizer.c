@@ -657,12 +657,6 @@ static void ProcessRelativeMouse(void)
 
 static void ProcessTouchPad(void)
 {
-//    static uint8_t byNumTouchesWas = 0;
-//    static uint8_t byNumTouchesIs = 0;
-//
-//    byNumTouchesWas = byNumTouchesIs;
-//    byNumTouchesIs = CheckTouches();
-
     // First, store all target info locally (even if the target is not present).
     for (uint8_t byTouchNum = 0U; byTouchNum < PRECISION_TPAD_MAX_CONTACT_CT; byTouchNum++)
     {
@@ -729,59 +723,6 @@ static void ProcessTouchPad(void)
     // Buttons
     // Press clicks (pressure) are controlled by us, the host handles 'tap' (touch) clicks
     usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 4] = 0;
-
-
-//    usb_hid_mouse_report_in[0] = REPORT_TOUCHPAD; /* Report ID */
-//
-//    uint8_t ArrayIndexOffset = 0;
-//    for(uint8_t byTouchNum = 0U; byTouchNum < PRECISION_TPAD_MAX_CONTACT_CT; byTouchNum++)
-//    {
-//        uint8_t byCorrectedTouchNum = byTouchNum + 1;
-////        uint8_t ArrayIndexOffset = (byTouchNum * 5U);
-//        uint8_t touch_state = 0;
-//
-//        uint8_t TouchIsPresent = GetXYZFromReport(DO_NOT_IGNORE_COORDS, byCorrectedTouchNum);
-//
-//        if (TouchIsPresent)
-//        {
-//            touch_state = TPAD_TIP_SWITCH | TPAD_CONFIDENCE;
-//        }
-//        else
-//        {
-//            touch_state = TPAD_CONFIDENCE;
-//        }
-//
-//        /* Negative Z value indicates the target is a hover or prox */
-//        if(TouchIsPresent && (byReportZ_lsb < 0x80))
-//        {
-//            usb_hid_mouse_report_in[ArrayIndexOffset + 1] = (uint8_t)(byTouchNum << 2u) | touch_state;
-//            usb_hid_mouse_report_in[ArrayIndexOffset + 2] = (DigitizerXCoord >> 4) & 0xFF;
-//            usb_hid_mouse_report_in[ArrayIndexOffset + 3] = (DigitizerXCoord >> 4) >> 8;
-//            usb_hid_mouse_report_in[ArrayIndexOffset + 4] = (DigitizerYCoord >> 4) & 0xFF;
-//            usb_hid_mouse_report_in[ArrayIndexOffset + 5] = (DigitizerYCoord >> 4) >> 8;
-//            ArrayIndexOffset += 5;
-//        }
-//    }
-//
-//    // Scan time
-//    /* Windows expects this to increment of 100 microseconds */
-//    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 1] = wd100usTick & 0xFF;
-//    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 2] = wd100usTick >> 8;
-//
-//    // Contact count
-//    // Lags 1 frame behind when contacts are removed, Windows needs to see the tip-switch turned off
-//    if (byNumTouchesWas > byNumTouchesIs)
-//    {
-//        usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 3] = byNumTouchesWas;
-//    }
-//    else
-//    {
-//        usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 3] = byNumTouchesIs;
-//    }
-//
-//    // Buttons
-//    /* Button clicks (press) are controlled by us, the host handles 'tap' (touch) clicks */
-//    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 4] = 0;
 
     u34_TCP_report[1] = 0x00;   // "consumes" the report so it isn't used again
 
