@@ -722,9 +722,21 @@ static void ProcessTouchPad(void)
 
     // Buttons
     // Press clicks (pressure) are controlled by us, the host handles 'tap' (touch) clicks
-    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 4] = 0;
+    // Look at the first active target for Z value, targets that are not present do not have their
+    // Z values updated every frame.
+    int8_t ZValue = 0;
+    for (uint8_t byTouchNum = 0U; byTouchNum < PRECISION_TPAD_MAX_CONTACT_CT; byTouchNum++)
+    {
+        if (g_TouchPadInfo.TouchpadInfo.Target[byTouchNum].PresentThisFrame == true)
+        {
+            ZValue = g_TouchPadInfo.TouchpadInfo.Target[byTouchNum].ZValue;
+            break;
+        }
+    }
+    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 4] = (ZValue >= 16) ? 1 : 0;
 
-    u34_TCP_report[1] = 0x00;   // "consumes" the report so it isn't used again
+    // "Consumes" the report so it isn't used again
+    u34_TCP_report[1] = 0x00;
 
     boMouseReportToSend = 1;
 }
