@@ -257,6 +257,7 @@ void SystemClock_Config(void)
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
   RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
+  static RCC_CRSInitTypeDef RCC_CRSInitStruct = {0};
 
   /** Initializes the CPU, AHB and APB busses clocks
   */
@@ -310,6 +311,16 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+
+  /** Configure the clock recovery system (CRS) using the USB SOF packet as the sync source
+  */
+  __HAL_RCC_CRS_CLK_ENABLE();
+  RCC_CRSInitStruct.Prescaler = RCC_CRS_SYNC_DIV1;
+  RCC_CRSInitStruct.Source = RCC_CRS_SYNC_SOURCE_USB;
+  RCC_CRSInitStruct.ReloadValue = __HAL_RCC_CRS_RELOADVALUE_CALCULATE(48000000, 1000); /* Synchronised with USB SOF at 1kHz */
+  RCC_CRSInitStruct.ErrorLimitValue = RCC_CRS_ERRORLIMIT_DEFAULT;
+  RCC_CRSInitStruct.HSI48CalibrationValue = 0X20; /* Default trim value */
+  HAL_RCCEx_CRSConfig(&RCC_CRSInitStruct);
 }
 
 //--------------------------
