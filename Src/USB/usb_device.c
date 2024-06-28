@@ -72,9 +72,16 @@ void MX_USB_DEVICE_Init(void)
     ConfigurePID(BridgeMode);
     GetMouseDescriptorLength(BridgeMode);
     ConfigureCfgDescriptor(BridgeMode);
-    if(u35_addr != 0)   // set various parameters (like VID + PID) if defined by user in aXiom firmware
+
+    // set various parameters (like VID + PID) if defined by user in aXiom firmware
+    if(u35_addr != 0)
     {
         configure_HID_PARAMETER_IDs();
+    }
+
+    if(BridgeMode == MODE_PRECISION_TOUCHPAD)
+    {
+        update_touchpad_threshold();
     }
 
     /* USER CODE END USB_DEVICE_Init_PreTreatment */

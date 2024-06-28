@@ -63,6 +63,7 @@ void    AbsoluteMouseDigitizer(void);
 void    PrecisionTouchpad(void);
 void    CRC_Checksum(void);
 void    setup_proxy_for_digitizer(void);
+void    update_touchpad_threshold(void);
 bool    Check_u41Report(void);
 uint8_t CheckTouches(void);
 void    SetTouchPadMode(uint8_t Mode);

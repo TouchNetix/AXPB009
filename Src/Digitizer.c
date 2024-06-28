@@ -48,6 +48,8 @@
 #include "Flash_Control.h"
 
 /*============ Defines ============*/
+#define READ                        (0x80)
+
 #define U41_REPORT                  (0x41)
 #define TOUCH_NUMBER                (1)
 
@@ -144,6 +146,7 @@ uint8_t     byReportX_msb, byReportX_lsb;
 uint8_t     byReportY_msb, byReportY_lsb;
 uint8_t     byReportZ_msb, byReportZ_lsb;
 uint8_t     button_state; // bit 0 = left-button, bit 1 = right-button
+int8_t      touchpad_press_threshold = 0;
 
 //This table was extracted from online tool at http://www.sunshine2k.de/coding/javascript/crc/crc_js.html and verified with one other online source
 //Note that it may also be known as 0xA001 in reverse polynomial notation (i.e. 0x8005 backwards)
@@ -550,6 +553,37 @@ void setup_proxy_for_digitizer(void)
 
 /*-----------------------------------------------------------*/
 
+void update_touchpad_threshold(void)
+{
+    // Read the first press threshold from u44 (hard coded, but we have no way of knowing).
+    int8_t u44_idx = find_usage_from_table(0x44);
+    if (u44_idx < 0)
+    {
+        // u44 not found, don't update threshold
+        return;
+    }
+
+    // Read 3 bytes (pressthreshold[0] is in the 3rd byte)
+    aXiom_NumBytesTx = 4;
+    aXiom_NumBytesRx = 3;
+    uint16_t addr = (uint16_t)usagetable[u44_idx].startpage << 8U;
+    aXiom_Tx_Buffer[0] = (uint8_t)(addr & 0xFF);
+    aXiom_Tx_Buffer[1] = (uint8_t)((addr >> 8) & 0xFF);
+    aXiom_Tx_Buffer[2] = aXiom_NumBytesRx;
+    aXiom_Tx_Buffer[3] = READ;
+
+    if(Comms_Sequence() == HAL_ERROR)
+    {
+        // Read failed, don't update threshold
+        return;
+    }
+    else
+    {
+        // 2 bytes for comms status, pressthreshold[0] is in 3rd byte
+        touchpad_press_threshold = (int8_t)aXiom_Rx_Buffer[0][2+2];
+    }
+}
+
 /*============ Local Functions ============*/
 
 static void DecodeOneTouch(uint8_t byTouchToCheck, uint8_t *byStatus, uint8_t *wdXCoord, uint8_t *wdYCoord, uint8_t *byZAmplitude)
@@ -733,7 +767,7 @@ static void ProcessTouchPad(void)
             break;
         }
     }
-    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 4] = (ZValue >= 16) ? 1 : 0;
+    usb_hid_mouse_report_in[(PRECISION_TPAD_MAX_CONTACT_CT * 5) + 4] = (ZValue >= touchpad_press_threshold) ? 1 : 0;
 
     // "Consumes" the report so it isn't used again
     u34_TCP_report[1] = 0x00;
