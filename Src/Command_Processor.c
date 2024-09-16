@@ -237,10 +237,7 @@ void ProcessTBPCommand()
 //-------
         case CMD_RESET_AXIOM: //0x99
         {
-            HAL_GPIO_WritePin(nRESET_GPIO_Port, nRESET, RESET);
-            HAL_Delay(1);
-            HAL_GPIO_WritePin(nRESET_GPIO_Port, nRESET, SET);
-            HAL_Delay(500); // gives aXiom time to boot up again before having anything requested of it
+            Reset_aXiom();
             boProxyEnabled = boProxyMode_temp;  // reinstate previous proxy mode
             boInternalProxy = boInternalProxy_temp; // restore the mode proxy was in before function was called
             break;

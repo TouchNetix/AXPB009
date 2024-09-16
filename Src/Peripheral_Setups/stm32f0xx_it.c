@@ -203,11 +203,27 @@ void I2C1_IRQHandler(void)
 }
 
 /**
-  * @brief This function handles TIM1 update interrupt and TIM16 global interrupt.
+  * @brief This function handles TIM3 global interrupt.
+  */
+void TIM3_IRQHandler(void)
+{
+    HAL_TIM_IRQHandler(&htim3);
+}
+
+/**
+  * @brief This function handles TIM16 global interrupt.
   */
 void TIM16_IRQHandler(void)
 {
     HAL_TIM_IRQHandler(&htim16);
+}
+
+/**
+  * @brief This function handles EXTI line 0 and 1 interrupts.
+  */
+void EXTI0_1_IRQHandler(void)
+{
+    HAL_GPIO_EXTI_IRQHandler(NRESET_PIN);
 }
 
 /* USER CODE END 1 */

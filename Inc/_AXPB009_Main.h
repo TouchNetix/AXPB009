@@ -68,7 +68,7 @@ void Error_Handler(void);
 #define nSS_SPI             GPIO_PIN_4
 #define nSS_SPI_GPIO_Port   GPIOA
 
-#define nRESET              GPIO_PIN_1
+#define NRESET_PIN          GPIO_PIN_1
 #define nRESET_GPIO_Port    GPIOB
 #define nIRQ_Pin            GPIO_PIN_0
 #define nIRQ_GPIO_Port      GPIOA

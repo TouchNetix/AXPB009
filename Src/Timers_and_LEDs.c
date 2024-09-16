@@ -164,11 +164,45 @@ void comms_detect_inactivity(void)
 
 //--------------------------
 
-// callback function when TIM16 has reset --> used to increment the digitizer timestamp
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if(htim == &htim16)
     {
         wd100usTick++; // increment the digitizer timestamp --> this callback is entered every 100us, which is what windows is expecting
+    }
+}
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+    static uint32_t timer_count = 0;
+
+    if (htim == &htim3)
+    {
+        // Save the count (used to determine pulse length).
+        timer_count = htim->Instance->CCR4;
+
+        // Get the current edge setting.
+        // 0 - Configured for rising edge detection.
+        // 1 - Configured for falling edge detection.
+        uint32_t edge = (htim->Instance->CCER & TIM_CCER_CC4P_Msk) >> TIM_CCER_CC4P_Pos;
+
+        if (edge == 1)
+        {
+            // Just had a falling edge, re-configure for a rising edge.
+            htim->Instance->CCER &= ~((1 << TIM_CCER_CC4NP_Pos) & TIM_CCER_CC4NP_Msk);
+            htim->Instance->CCER &= ~((1 << TIM_CCER_CC4P_Pos) & TIM_CCER_CC4P_Msk);
+        }
+        else if (edge == 0)
+        {
+            // Just had a rising edge, re-configure for a falling edge.
+            htim->Instance->CCER &= ~((1 << TIM_CCER_CC4NP_Pos) & TIM_CCER_CC4NP_Msk);
+            htim->Instance->CCER |= ((1 << TIM_CCER_CC4P_Pos) & TIM_CCER_CC4P_Msk);
+        }
+        else
+        {
+            // Invalid setting - configure to look for a falling edge.
+            htim->Instance->CCER |= ((1 << TIM_CCER_CC4P_Pos) & TIM_CCER_CC4P_Msk);
+            htim->Instance->CCER &= ~((1 << TIM_CCER_CC4NP_Pos) & TIM_CCER_CC4NP_Msk);
+        }
     }
 }

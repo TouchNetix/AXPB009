@@ -45,6 +45,7 @@
 #include "Proxy_driver.h"
 #include "Flash_Control.h"
 #include "Digitizer.h"
+#include "Mode_Control.h"
 
 /*============ Defines ============*/
 #define USAGETABLE_MAX_RETRY_NUM    (250U)
@@ -57,16 +58,17 @@ SPI_HandleTypeDef hspi_module;
 I2C_HandleTypeDef hi2c_module;
 DMA_HandleTypeDef hdma_spi_tx;
 DMA_HandleTypeDef hdma_spi_rx;
+TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim16;
 
 /*============ Local Function Declarations ============*/
 static  uint8_t check_comms_mode(void);
-static  void    MX_GPIO_Init(void);
-static  void    MX_DMA_Init(void);
-static  void    MX_TIM16_Init(void);
+static  void    GPIO_Init(void);
+static  void    DMA_Init(void);
+static  void    TIM3_Init(void);
+static  void    TIM16_Init(void);
 static  void    LEDs_Init(void);
 static  bool    detect_host_presence(void);
-static  void    Reset_Device(void);
 static  void    Change_Axiom_Mode(uint8_t comms_sel);
 
 /*============ Functions ============*/
@@ -96,7 +98,7 @@ void Device_Init(void)
     // First thing to do is put aXiom is I2C mode --> we always assume that someone else (over i2c) is talking to the device (think control board)
     Change_Axiom_Mode(I2C);
 
-    GPIO_InitTypeDef    GPIO_InitStruct = {0};
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
 
     __HAL_RCC_GPIOC_CLK_ENABLE();
     __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -122,7 +124,7 @@ void Device_Init(void)
     else
     {
         // no host connection detected - release nRESET in case the i2c host needs control over it
-        HAL_GPIO_DeInit(nRESET_GPIO_Port, nRESET);
+        HAL_GPIO_DeInit(nRESET_GPIO_Port, NRESET_PIN);
         while(host_detected == false)
         {
             // Keep trying to connect to a USB host.
@@ -140,9 +142,9 @@ void Device_Init(void)
 /*--------------------------------------------*/
 
     /* Initialize the rest of the peripherals */
-    MX_TIM16_Init();
-    MX_GPIO_Init();
-    MX_DMA_Init();
+    TIM16_Init();
+    GPIO_Init();
+    DMA_Init();
     LEDs_Init();
 
     HAL_GPIO_TogglePin(LED_AXIOM_GPIO_Port, LED_AXIOM_Pin);
@@ -199,12 +201,18 @@ void Device_Init(void)
     HAL_GPIO_WritePin(LED_AXIOM_GPIO_Port, LED_AXIOM_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(LED_USB_GPIO_Port, LED_USB_Pin, GPIO_PIN_RESET);
 
+    // Setup the nRESET monitoring state machine.
+//    Configure_nRESET(NRESET_INPUT);
+    HAL_GPIO_DeInit(nRESET_GPIO_Port, NRESET_PIN);
+    TIM3_Init();
+    HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);
+
     if(BridgeMode == PARALLEL_DIGITIZER) // set comms parameters for device to work in digitizer mode (noone else to set these!)
     {
         HAL_TIM_Base_Start_IT(&htim16); // starts the timer used for digitizer timestamps
     }
 
-    InitProxyInterruptMode();   // sets pin PA0 as EXTI interrupt --> this means the bridge will always enter proxy mode at startup (digitizer or not)
+    InitProxyInterruptMode();   // sets pin PA0 as input --> the bridge will enter proxy mode at startup
 
     /* USB Initialisation */
     MX_USB_DEVICE_Init();   // USB is final thing to setup --> means nothing else will hold up the device, allowing it to respond correctly (otherwise it would be unresponsive/dead in the hosts' eyes)
@@ -319,7 +327,7 @@ void SystemClock_Config(void)
   * @param None
   * @retval None
   */
-static void MX_DMA_Init(void)
+static void DMA_Init(void)
 {
     /* DMA controller clock enable */
     __HAL_RCC_DMA1_CLK_ENABLE();
@@ -338,7 +346,7 @@ static void MX_DMA_Init(void)
   * @param None
   * @retval None
   */
-static void MX_GPIO_Init(void)
+static void GPIO_Init(void)
 {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
 
@@ -348,21 +356,15 @@ static void MX_GPIO_Init(void)
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
 
-    HAL_GPIO_WritePin(nSS_SPI_GPIO_Port, nSS_SPI, SET);
-    HAL_GPIO_WritePin(nRESET_GPIO_Port, nRESET, SET);
-
     /* slave select for SPI */
+    HAL_GPIO_WritePin(nSS_SPI_GPIO_Port, nSS_SPI, SET);
     GPIO_InitStruct.Pin  = nSS_SPI;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
-//    GPIO_InitStruct.Pull = GPIO_PULLUP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(nSS_SPI_GPIO_Port, &GPIO_InitStruct);
 
     /* Used as reset for aXiom */
-    GPIO_InitStruct.Pin  = nRESET;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
-    HAL_GPIO_Init(nRESET_GPIO_Port, &GPIO_InitStruct);
+    Configure_nRESET(NRESET_OUTPUT);
 }
 
 //--------------------------
@@ -471,17 +473,43 @@ static void LEDs_Init(void)
 
 //--------------------------
 
-static void MX_TIM16_Init(void)
+static void TIM3_Init(void)
 {
-    /* USER CODE BEGIN TIM16_Init 0 */
+    TIM_MasterConfigTypeDef sMasterConfig = {0};
+    TIM_IC_InitTypeDef sConfigIC = {0};
 
-    /* USER CODE END TIM16_Init 0 */
+    htim3.Instance = TIM3;
+    htim3.Init.Prescaler = (SYSTEMCLOCK_IN_MHZ * 3200U) - 1U; // Increment every 100us.
+    htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+    htim3.Init.Period = 10U;//65535U; // Max period.
+    htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    if (HAL_TIM_IC_Init(&htim3) != HAL_OK)
+    {
+      Error_Handler();
+    }
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+    if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+    {
+      Error_Handler();
+    }
+    sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_FALLING;
+    sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+    sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+    sConfigIC.ICFilter = 15;
+    if (HAL_TIM_IC_ConfigChannel(&htim3, &sConfigIC, TIM_CHANNEL_4) != HAL_OK)
+    {
+      Error_Handler();
+    }
+}
 
-    /* USER CODE BEGIN TIM16_Init 1 */
+//--------------------------
 
-    /* USER CODE END TIM16_Init 1 */
+static void TIM16_Init(void)
+{
     htim16.Instance = TIM16;
-    htim16.Init.Prescaler = SYSTEMCLOCK_IN_MHZ - 1;
+    htim16.Init.Prescaler = SYSTEMCLOCK_IN_MHZ - 1; // Increment every 1us.
     htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
     htim16.Init.Period = 100 - 1; // want a period of 100us
     htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -491,20 +519,6 @@ static void MX_TIM16_Init(void)
     {
       Error_Handler();
     }
-    /* USER CODE BEGIN TIM16_Init 2 */
-
-    /* USER CODE END TIM16_Init 2 */
-}
-
-//--------------------------
-
-// sends a reset signal to the connected device (aXiom)
-static void Reset_Device(void)
-{
-    HAL_GPIO_WritePin(nRESET_GPIO_Port, nRESET, RESET);
-    HAL_Delay(1);
-    HAL_GPIO_WritePin(nRESET_GPIO_Port, nRESET, SET);
-    HAL_Delay(500); // gives aXiom time to boot up again before having anything requested of it (you wouldn't want someone asking stuff of you after just waking up, would you?)
 }
 
 //--------------------------
@@ -530,11 +544,7 @@ static void Change_Axiom_Mode(uint8_t comms_sel)
         HAL_GPIO_Init(SPI_MISO_GPIO_Port, &GPIO_InitStruct);
 
         // initialise nRESET
-        HAL_GPIO_WritePin(nRESET_GPIO_Port, nRESET, SET);
-        GPIO_InitStruct.Pin  = nRESET;
-        GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
-        GPIO_InitStruct.Pull = GPIO_PULLUP;
-        HAL_GPIO_Init(nRESET_GPIO_Port, &GPIO_InitStruct);
+        Configure_nRESET(NRESET_OUTPUT);
 
         gpios_initialised = 1;
     }
@@ -557,5 +567,5 @@ static void Change_Axiom_Mode(uint8_t comms_sel)
     }
 
     // put axiom in I2C mode
-    Reset_Device();
+    Reset_aXiom();
 }

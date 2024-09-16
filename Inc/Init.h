@@ -55,6 +55,7 @@ extern SPI_HandleTypeDef hspi_module;
 extern I2C_HandleTypeDef hi2c_module;
 extern DMA_HandleTypeDef hdma_spi_tx;
 extern DMA_HandleTypeDef hdma_spi_rx;
+extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim16;
 
 /*============ Exported Functions ============*/

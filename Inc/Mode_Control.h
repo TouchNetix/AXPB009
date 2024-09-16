@@ -39,10 +39,16 @@
 extern  bool    boMouseEnabled;
 extern  bool    boBlockReports;
 
+/*============ Exported Defines ============*/
+#define NRESET_OUTPUT   (0U)
+#define NRESET_INPUT    (1U)
+
 /*============ Exported Functions ============*/
 void Device_DeInit(void);
 bool InMouseOrDigitizerMode(void);
 void RestartBridge(void);
 bool WakeupHost(uint8_t ByNumTouches, uint8_t byReportZ);
+void Reset_aXiom(void);
+void Configure_nRESET(uint8_t mode);
 
 #endif /* MODE_CONTROL_H_ */
