@@ -57,6 +57,7 @@ extern DMA_HandleTypeDef hdma_spi_tx;
 extern DMA_HandleTypeDef hdma_spi_rx;
 extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim16;
+extern TIM_HandleTypeDef htim17;
 
 /*============ Exported Functions ============*/
 void Device_Init(void);

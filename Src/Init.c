@@ -46,6 +46,7 @@
 #include "Flash_Control.h"
 #include "Digitizer.h"
 #include "Mode_Control.h"
+#include "Timers_and_LEDs.h"
 
 /*============ Defines ============*/
 #define USAGETABLE_MAX_RETRY_NUM    (250U)
@@ -60,6 +61,7 @@ DMA_HandleTypeDef hdma_spi_tx;
 DMA_HandleTypeDef hdma_spi_rx;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim16;
+TIM_HandleTypeDef htim17;
 
 /*============ Local Function Declarations ============*/
 static  uint8_t check_comms_mode(void);
@@ -67,6 +69,7 @@ static  void    GPIO_Init(void);
 static  void    DMA_Init(void);
 static  void    TIM3_Init(void);
 static  void    TIM16_Init(void);
+static  void    TIM17_Init(void);
 static  void    LEDs_Init(void);
 static  bool    detect_host_presence(void);
 static  void    Change_Axiom_Mode(uint8_t comms_sel);
@@ -205,6 +208,7 @@ void Device_Init(void)
 //    Configure_nRESET(NRESET_INPUT);
     HAL_GPIO_DeInit(nRESET_GPIO_Port, NRESET_PIN);
     TIM3_Init();
+    TIM17_Init();
     HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);
 
     if(BridgeMode == PARALLEL_DIGITIZER) // set comms parameters for device to work in digitizer mode (noone else to set these!)
@@ -479,9 +483,9 @@ static void TIM3_Init(void)
     TIM_IC_InitTypeDef sConfigIC = {0};
 
     htim3.Instance = TIM3;
-    htim3.Init.Prescaler = (SYSTEMCLOCK_IN_MHZ * 3200U) - 1U; // Increment every 100us.
+    htim3.Init.Prescaler = (SYSTEMCLOCK_IN_MHZ * 100U) - 1U; // Increment every 100us.
     htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim3.Init.Period = 10U;//65535U; // Max period.
+    htim3.Init.Period = TIM3_PERIOD;
     htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
     if (HAL_TIM_IC_Init(&htim3) != HAL_OK)
@@ -519,6 +523,26 @@ static void TIM16_Init(void)
     {
       Error_Handler();
     }
+}
+
+//--------------------------
+
+static void TIM17_Init(void)
+{
+    htim17.Instance = TIM17;
+    htim17.Init.Prescaler = (SYSTEMCLOCK_IN_MHZ * 1000U) - 1; // Increment every 1ms.
+    htim17.Init.CounterMode = TIM_COUNTERMODE_UP;
+    htim17.Init.Period = 500 - 1; // Period of 500ms.
+    htim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    htim17.Init.RepetitionCounter = 0;
+    htim17.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    if (HAL_TIM_Base_Init(&htim17) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    // We only want the timer to run once when we ask it to.
+    htim17.Instance->CR1 |= TIM_CR1_OPM;
 }
 
 //--------------------------

@@ -35,6 +35,9 @@
 #include "stm32f0xx.h"
 #include <stdbool.h>
 
+/*============ Defines ============*/
+#define TIM3_PERIOD (65535U)
+
 /*============ Exported Variables ============*/
 extern uint32_t aXiom_activity_counter;
 extern uint32_t USB_activity_counter;

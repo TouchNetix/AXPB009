@@ -41,16 +41,13 @@
 #include "Usage_Builder.h"
 
 /*============ Defines ============*/
-#define COMMSSWITCHSTATE_USBMODE                    (0U)
-#define COMMSSWITCHSTATE_NRESETACTIVITYDETECTED_USB (1U)
-#define COMMSSWITCHSTATE_NRESETACTIVITYDETECTED_I2C (2U)
-#define COMMSSWITCHSTATE_I2CMODE                    (3U)
-
 #define COMMSSWITCH_NUM_PULSES_FOR_I2C              (4U)
 #define COMMSSWITCH_NUM_PULSES_FOR_USB              (2U)
 
 /*============ Local Variables ============*/
-uint8_t g_NresetCount = 0U;
+uint8_t     g_NresetCount = 0U;
+uint32_t    g_WindowMonitorStartCount = 0U;
+uint8_t     g_ModeState = USBMODE_IDLE;
 
 /*============ Exported Variables ============*/
 uint8_t WakeupMode      = 0;
@@ -58,7 +55,7 @@ bool    boBlockReports  = 0;    // when the host sends a command that needs a re
                                 // to block any sending until the command has been processed
 
 /*============ Local Functions ============*/
-static void Bridge_Comms_Switch_State_Machine(void);
+
 
 /*============ Exported Functions ============*/
 // returns true if digitizer/mouse not enabled
@@ -219,46 +216,71 @@ void Device_DeInit(void)
     HAL_DeInit();
 }
 
-/*============ Local Functions ============*/
-static void Bridge_Comms_Switch_State_Machine(void)
+uint8_t Get_Bridge_Comms_State(void)
 {
-    static uint8_t state = COMMSSWITCHSTATE_USBMODE;
+    return g_ModeState;
+}
 
-    switch(state)
+void Latch_Monitor_Window_Count(uint32_t count)
+{
+    g_WindowMonitorStartCount = count;
+}
+
+uint32_t Get_Monitor_Window_Count(void)
+{
+    return g_WindowMonitorStartCount;
+}
+
+void Bridge_Comms_Switch_State_Machine(uint8_t Action)
+{
+    switch(g_ModeState)
     {
         default:
-        case COMMSSWITCHSTATE_USBMODE:
+        case USBMODE_IDLE:
         {
+            if (Action == ACTIVITY_DETECTED)
+            {
+                // Activity detected on nRESET pin.
+                g_ModeState = NRESETACTIVITYDETECTED_USB;
+            }
+
             // The host has sent a 5-50ms reset pulse to aXiom, start the timer and look
             // for more pulses of the same length.
 
-
-
-            state = COMMSSWITCHSTATE_NRESETACTIVITYDETECTED_USB;
             break;
         }
-        case COMMSSWITCHSTATE_NRESETACTIVITYDETECTED_USB:
+
+        case NRESETACTIVITYDETECTED_USB:
         {
-            if (g_NresetCount == COMMSSWITCH_NUM_PULSES_FOR_I2C)
+            if (Action == RESET_PULSE_DETECTED)
             {
-                state = COMMSSWITCHSTATE_I2CMODE;
+                g_NresetCount++;
+            }
+            else if (RESET_WINDOW_ELAPSED)
+            {
+
             }
             else
             {
-                // Not enough pulses sent within the window, reset the count.
-                g_NresetCount = 0U;
-                state = COMMSSWITCHSTATE_USBMODE;
+
+            }
+
+            if (g_NresetCount >= COMMSSWITCH_NUM_PULSES_FOR_I2C)
+            {
+                g_ModeState = I2CMODE_IDLE;
             }
 
             break;
         }
-        case COMMSSWITCHSTATE_I2CMODE:
+
+        case I2CMODE_IDLE:
         {
             // The host has requested to talk to aXiom directly over i2c. The bridge has disconnected from
             // the USB and aXiom is in I2C mode.
             break;
         }
-        case COMMSSWITCHSTATE_NRESETACTIVITYDETECTED_I2C:
+
+        case NRESETACTIVITYDETECTED_I2C:
         {
             // The host has sent a 5-50ms reset pulse to aXiom, start monitoring for more pulses of
             // the same length.
@@ -270,9 +292,11 @@ static void Bridge_Comms_Switch_State_Machine(void)
             {
                 // Not enough pulses sent within the window, reset the count.
                 g_NresetCount = 0U;
-                state = COMMSSWITCHSTATE_I2CMODE;
+                g_ModeState = I2CMODE_IDLE;
             }
             break;
         }
     }
 }
+
+/*============ Local Functions ============*/

@@ -38,9 +38,12 @@
 #include "usbd_mouse.h"
 #include "usbd_mouse_if.h"
 #include "Digitizer.h"
+#include "Timers_and_LEDs.h"
 
 /*============ Defines ============*/
-#define LED_FREQ_DIV  (0x5)
+#define LED_FREQ_DIV    (0x5)
+#define TIM3_5MS        (50U)
+#define TIM3_50MS       (500U)
 
 /*============ Local Variables ============*/
 
@@ -166,20 +169,23 @@ void comms_detect_inactivity(void)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    if(htim == &htim16)
+    if (htim == &htim16)
     {
         wd100usTick++; // increment the digitizer timestamp --> this callback is entered every 100us, which is what windows is expecting
+    }
+    else if (htim == &htim17)
+    {
+        //
     }
 }
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-    static uint32_t timer_count = 0;
+    static uint32_t nResetStartTime = 0;
 
     if (htim == &htim3)
     {
-        // Save the count (used to determine pulse length).
-        timer_count = htim->Instance->CCR4;
+        uint32_t TimeCount = htim->Instance->CCR4;
 
         // Get the current edge setting.
         // 0 - Configured for rising edge detection.
@@ -191,12 +197,45 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
             // Just had a falling edge, re-configure for a rising edge.
             htim->Instance->CCER &= ~((1 << TIM_CCER_CC4NP_Pos) & TIM_CCER_CC4NP_Msk);
             htim->Instance->CCER &= ~((1 << TIM_CCER_CC4P_Pos) & TIM_CCER_CC4P_Msk);
+
+            uint8_t Mode = Get_Bridge_Comms_State();
+            if ((Mode == USBMODE_IDLE) || (Mode == I2CMODE_IDLE))
+            {
+                // First reset seen this window, start the overall 500ms monitoring window by latching the clock count register.
+                Latch_Monitor_Window_Count(TimeCount);
+
+                // Start the 500ms timer.
+                HAL_TIM_Base_Start_IT(&htim17);
+
+//                Bridge_Comms_Switch_State_Machine(ACTIVITY_DETECTED);
+            }
+
+            // Save the count (used to determine pulse length).
+            nResetStartTime = TimeCount;
         }
         else if (edge == 0)
         {
             // Just had a rising edge, re-configure for a falling edge.
             htim->Instance->CCER &= ~((1 << TIM_CCER_CC4NP_Pos) & TIM_CCER_CC4NP_Msk);
             htim->Instance->CCER |= ((1 << TIM_CCER_CC4P_Pos) & TIM_CCER_CC4P_Msk);
+
+            // Calculate how long the pulse was - 1 tick is 100us.
+            uint32_t PulseLengthInTicks;
+            if (TimeCount < nResetStartTime)
+            {
+                // The count register has wrapped around.
+                PulseLengthInTicks = (TIM3_PERIOD - nResetStartTime) + TimeCount;
+            }
+            else
+            {
+                PulseLengthInTicks = TimeCount - nResetStartTime;
+            }
+
+            // Only count pulses that are between 5ms and 50ms long.
+            if ((PulseLengthInTicks >= TIM3_5MS) && (PulseLengthInTicks <= TIM3_50MS))
+            {
+//                Bridge_Comms_Switch_State_Machine(RESET_PULSE_DETECTED);
+            }
         }
         else
         {

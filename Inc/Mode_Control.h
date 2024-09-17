@@ -40,15 +40,28 @@ extern  bool    boMouseEnabled;
 extern  bool    boBlockReports;
 
 /*============ Exported Defines ============*/
-#define NRESET_OUTPUT   (0U)
-#define NRESET_INPUT    (1U)
+#define NRESET_OUTPUT               (0U)
+#define NRESET_INPUT                (1U)
+
+#define USBMODE_IDLE                (0U)
+#define I2CMODE_IDLE                (1U)
+#define NRESETACTIVITYDETECTED_USB  (2U)
+#define NRESETACTIVITYDETECTED_I2C  (3U)
+
+#define ACTIVITY_DETECTED           (0U)
+#define RESET_PULSE_DETECTED        (1U)
+#define RESET_WINDOW_ELAPSED        (2U)
 
 /*============ Exported Functions ============*/
-void Device_DeInit(void);
-bool InMouseOrDigitizerMode(void);
-void RestartBridge(void);
-bool WakeupHost(uint8_t ByNumTouches, uint8_t byReportZ);
-void Reset_aXiom(void);
-void Configure_nRESET(uint8_t mode);
+void        Device_DeInit(void);
+bool        InMouseOrDigitizerMode(void);
+void        RestartBridge(void);
+bool        WakeupHost(uint8_t ByNumTouches, uint8_t byReportZ);
+void        Reset_aXiom(void);
+void        Configure_nRESET(uint8_t mode);
+uint8_t     Get_Bridge_Comms_State(void);
+void        Latch_Monitor_Window_Count(uint32_t count);
+uint32_t    Get_Monitor_Window_Count(void);
+void        Bridge_Comms_Switch_State_Machine(uint8_t Action);
 
 #endif /* MODE_CONTROL_H_ */

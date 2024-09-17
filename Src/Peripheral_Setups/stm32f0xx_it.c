@@ -219,6 +219,14 @@ void TIM16_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles TIM17 global interrupt.
+  */
+void TIM17_IRQHandler(void)
+{
+    HAL_TIM_IRQHandler(&htim17);
+}
+
+/**
   * @brief This function handles EXTI line 0 and 1 interrupts.
   */
 void EXTI0_1_IRQHandler(void)
