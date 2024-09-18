@@ -175,7 +175,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     }
     else if (htim == &htim17)
     {
-        //
+        Bridge_Comms_Switch_State_Machine(RESET_WINDOW_ELAPSED);
     }
 }
 
@@ -201,13 +201,10 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
             uint8_t Mode = Get_Bridge_Comms_State();
             if ((Mode == USBMODE_IDLE) || (Mode == I2CMODE_IDLE))
             {
-                // First reset seen this window, start the overall 500ms monitoring window by latching the clock count register.
-                Latch_Monitor_Window_Count(TimeCount);
-
-                // Start the 500ms timer.
+                // First reset seen this window, start the 500ms timer.
                 HAL_TIM_Base_Start_IT(&htim17);
 
-//                Bridge_Comms_Switch_State_Machine(ACTIVITY_DETECTED);
+                Bridge_Comms_Switch_State_Machine(ACTIVITY_DETECTED);
             }
 
             // Save the count (used to determine pulse length).
@@ -234,7 +231,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
             // Only count pulses that are between 5ms and 50ms long.
             if ((PulseLengthInTicks >= TIM3_5MS) && (PulseLengthInTicks <= TIM3_50MS))
             {
-//                Bridge_Comms_Switch_State_Machine(RESET_PULSE_DETECTED);
+                Bridge_Comms_Switch_State_Machine(RESET_PULSE_DETECTED);
             }
         }
         else

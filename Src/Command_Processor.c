@@ -490,7 +490,7 @@ void ProcessTBPCommand()
             if(pTBPCommandReport[1] == MODE_SWITCH_OK)
             {
                 /* Change value of BridgeMode and store in flash (saves desired state when rebooted) then reboot */
-                Device_DeInit();
+                Device_DeInit(true);
                 Store_BridgeMode_To_Flash(MODE_TBP_BASIC);
             }
             else
@@ -506,7 +506,7 @@ void ProcessTBPCommand()
             if(pTBPCommandReport[1] == MODE_SWITCH_OK)
             {
                 /* Change value of BridgeMode and store in flash (saves desired state when rebooted) */
-                Device_DeInit();
+                Device_DeInit(true);
                 Store_BridgeMode_To_Flash(MODE_PARALLEL_DIGITIZER);
             }
             else
@@ -522,7 +522,7 @@ void ProcessTBPCommand()
             if(pTBPCommandReport[1] == MODE_SWITCH_OK)
             {
                 /* Change value of BridgeMode and store in flash (saves desired state when rebooted) */
-                Device_DeInit();
+                Device_DeInit(true);
                 Store_BridgeMode_To_Flash(MODE_ABSOLUTE_MOUSE);
             }
             else

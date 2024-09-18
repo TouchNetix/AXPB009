@@ -362,7 +362,7 @@ void write_boot_sel(uint8_t boot_bit)
 
 void StartBootloader(void)
 {
-    Device_DeInit();
+    Device_DeInit(true);
 
     write_boot_sel(0);
 

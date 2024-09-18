@@ -339,7 +339,7 @@ static void DMA_Init(void)
     /* DMA interrupt init */
 
     /* DMA1_Channel2_3_IRQn interrupt configuration */
-    HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 0, 0);
+    HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 1, 0);
     HAL_NVIC_EnableIRQ(DMA1_Channel2_3_IRQn);
 }
 
@@ -567,9 +567,6 @@ static void Change_Axiom_Mode(uint8_t comms_sel)
         GPIO_InitStruct.Pull = GPIO_NOPULL;
         HAL_GPIO_Init(SPI_MISO_GPIO_Port, &GPIO_InitStruct);
 
-        // initialise nRESET
-        Configure_nRESET(NRESET_OUTPUT);
-
         gpios_initialised = 1;
     }
 
@@ -591,5 +588,7 @@ static void Change_Axiom_Mode(uint8_t comms_sel)
     }
 
     // put axiom in I2C mode
+    Configure_nRESET(NRESET_OUTPUT);
     Reset_aXiom();
+    Configure_nRESET(NRESET_INPUT);
 }

@@ -106,7 +106,7 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c)
         HAL_GPIO_Init(I2C_SDA_GPIO_Port, &GPIO_InitStruct);
 
         /* I2C1 interrupt init */
-        HAL_NVIC_SetPriority(I2C1_IRQn, 0, 0);
+        HAL_NVIC_SetPriority(I2C1_IRQn, 1, 0);
         HAL_NVIC_EnableIRQ(I2C1_IRQn);
     }
 }
@@ -194,7 +194,7 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi)
     __HAL_LINKDMA(hspi,hdmarx,hdma_spi_rx);
 
     /* SPI1 interrupt Init */
-    HAL_NVIC_SetPriority(SPI1_IRQn, 0, 0);
+    HAL_NVIC_SetPriority(SPI1_IRQn, 1, 0);
     HAL_NVIC_EnableIRQ(SPI1_IRQn);
 }
 
@@ -246,7 +246,7 @@ void HAL_TIM_IC_MspInit(TIM_HandleTypeDef* htim_ic)
         HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
         /* TIM3 interrupt Init */
-        HAL_NVIC_SetPriority(TIM3_IRQn, 0, 0);
+        HAL_NVIC_SetPriority(TIM3_IRQn, 1, 0);
         HAL_NVIC_EnableIRQ(TIM3_IRQn);
     }
 }
@@ -287,7 +287,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
         __HAL_RCC_TIM16_CLK_ENABLE();
 
         /* TIM16 interrupt Init */
-        HAL_NVIC_SetPriority(TIM16_IRQn, 0, 0);
+        HAL_NVIC_SetPriority(TIM16_IRQn, 1, 0);
         HAL_NVIC_EnableIRQ(TIM16_IRQn);
     }
     else if(htim_base->Instance==TIM17)
@@ -295,7 +295,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
         __HAL_RCC_TIM17_CLK_ENABLE();
 
         /* TIM17 interrupt Init */
-        HAL_NVIC_SetPriority(TIM17_IRQn, 0, 0);
+        HAL_NVIC_SetPriority(TIM17_IRQn, 1, 0);
         HAL_NVIC_EnableIRQ(TIM17_IRQn);
     }
 }

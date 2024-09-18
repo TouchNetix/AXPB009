@@ -41,8 +41,8 @@
 #include "Usage_Builder.h"
 
 /*============ Defines ============*/
-#define COMMSSWITCH_NUM_PULSES_FOR_I2C              (4U)
-#define COMMSSWITCH_NUM_PULSES_FOR_USB              (2U)
+#define COMMSSWITCH_NUM_PULSES_FOR_I2C              (1U)
+#define COMMSSWITCH_NUM_PULSES_FOR_USB              (1U)
 
 /*============ Local Variables ============*/
 uint8_t     g_NresetCount = 0U;
@@ -75,7 +75,7 @@ bool InMouseOrDigitizerMode(void)
 
 void RestartBridge(void)
 {
-    Device_DeInit();
+    Device_DeInit(true);
     HAL_NVIC_SystemReset();
 }
 
@@ -174,7 +174,7 @@ void Configure_nRESET(uint8_t mode)
         HAL_GPIO_Init(nRESET_GPIO_Port, &GPIO_InitStruct);
 
         /* TIM3 interrupt Init */
-        HAL_NVIC_SetPriority(TIM3_IRQn, 0, 0);
+        HAL_NVIC_SetPriority(TIM3_IRQn, 1, 0);
         HAL_NVIC_EnableIRQ(TIM3_IRQn);
     }
     else
@@ -183,13 +183,16 @@ void Configure_nRESET(uint8_t mode)
     }
 }
 
-void Device_DeInit(void)
+void Device_DeInit(bool DoDelay)
 {
     // Disconnect from USB bus and wait - Windows doesn't seem to like a device disconnect and re-connecting
     // in rapid succession
     USBD_Stop(&hUsbDeviceFS);
     USBD_DeInit(&hUsbDeviceFS);
-    HAL_Delay(3000);
+    if (DoDelay == true)
+    {
+        HAL_Delay(3000);
+    }
 
     HAL_TIM_Base_Stop_IT(&htim16);
 
@@ -221,16 +224,6 @@ uint8_t Get_Bridge_Comms_State(void)
     return g_ModeState;
 }
 
-void Latch_Monitor_Window_Count(uint32_t count)
-{
-    g_WindowMonitorStartCount = count;
-}
-
-uint32_t Get_Monitor_Window_Count(void)
-{
-    return g_WindowMonitorStartCount;
-}
-
 void Bridge_Comms_Switch_State_Machine(uint8_t Action)
 {
     switch(g_ModeState)
@@ -238,15 +231,13 @@ void Bridge_Comms_Switch_State_Machine(uint8_t Action)
         default:
         case USBMODE_IDLE:
         {
+            // Monitor nRESET.
+
             if (Action == ACTIVITY_DETECTED)
             {
                 // Activity detected on nRESET pin.
                 g_ModeState = NRESETACTIVITYDETECTED_USB;
             }
-
-            // The host has sent a 5-50ms reset pulse to aXiom, start the timer and look
-            // for more pulses of the same length.
-
             break;
         }
 
@@ -255,19 +246,54 @@ void Bridge_Comms_Switch_State_Machine(uint8_t Action)
             if (Action == RESET_PULSE_DETECTED)
             {
                 g_NresetCount++;
+
+                if (g_NresetCount >= COMMSSWITCH_NUM_PULSES_FOR_I2C)
+                {
+                    // Correct number of resets seen within the window.
+
+                    g_NresetCount = 0;
+
+                    // Disconnect from USB, put aXiom into i2c mode and send a 100ms pulse to signify to host
+                    // that the mode is switching.
+                    USBD_Stop(&hUsbDeviceFS);
+                    USBD_DeInit(&hUsbDeviceFS);
+
+                    // De-initialise GPIOs.
+                    HAL_GPIO_DeInit(GPIOA, SPI_SCK_Pin|SPI_MISO_Pin|SPI_MOSI_Pin|nSS_SPI);
+                    HAL_GPIO_DeInit(GPIOB, I2C_CLK_Pin|I2C_SDA_Pin);
+                    HAL_GPIO_DeInit(nIRQ_GPIO_Port, nIRQ_Pin);
+
+                    // Re-initialise nRESET (PB1), nSLVI2C/MISO (PA6) and I2CADDRSEL/MOSI (PA7).
+                    HAL_GPIO_WritePin(SPI_MISO_GPIO_Port, SPI_MISO_Pin, RESET); // I2C mode
+                    HAL_GPIO_WritePin(SPI_MOSI_GPIO_Port, SPI_MOSI_Pin, RESET); // I2C address 0x66
+                    GPIO_InitTypeDef GPIO_InitStruct = {0};
+                    GPIO_InitStruct.Pin  = SPI_MISO_Pin|SPI_MOSI_Pin;
+                    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+                    GPIO_InitStruct.Pull = GPIO_NOPULL;
+                    HAL_GPIO_Init(SPI_MISO_GPIO_Port, &GPIO_InitStruct);
+                    Configure_nRESET(NRESET_OUTPUT);
+
+                    // Send a 100ms pulse to signify to host that the mode is switching.
+                    HAL_GPIO_WritePin(nRESET_GPIO_Port, NRESET_PIN, RESET);
+
+                    // Temporarily raise the systick interrupt so we can delay here.
+                    // A bit dirty, but we're about to become idle anyway.
+                    HAL_NVIC_SetPriority(SysTick_IRQn, 0U, 0U);
+                    HAL_Delay(150);
+                    HAL_NVIC_SetPriority(SysTick_IRQn, TICK_INT_PRIORITY, 0U);
+                    HAL_GPIO_WritePin(nRESET_GPIO_Port, NRESET_PIN, SET);
+
+                    // Re-initialise nRESET for TIM3.
+                    Configure_nRESET(NRESET_INPUT);
+
+                    g_ModeState = I2CMODE_IDLE;
+                }
             }
             else if (RESET_WINDOW_ELAPSED)
             {
-
-            }
-            else
-            {
-
-            }
-
-            if (g_NresetCount >= COMMSSWITCH_NUM_PULSES_FOR_I2C)
-            {
-                g_ModeState = I2CMODE_IDLE;
+                // Not enough resets were seen, reset and wait for another window to be started.
+                g_NresetCount = 0;
+                g_ModeState = USBMODE_IDLE;
             }
 
             break;
@@ -275,23 +301,49 @@ void Bridge_Comms_Switch_State_Machine(uint8_t Action)
 
         case I2CMODE_IDLE:
         {
-            // The host has requested to talk to aXiom directly over i2c. The bridge has disconnected from
-            // the USB and aXiom is in I2C mode.
+            // Monitor nRESET.
+
+            if (Action == ACTIVITY_DETECTED)
+            {
+                // Activity detected on nRESET pin.
+                g_ModeState = NRESETACTIVITYDETECTED_I2C;
+            }
+
             break;
         }
 
         case NRESETACTIVITYDETECTED_I2C:
         {
-            // The host has sent a 5-50ms reset pulse to aXiom, start monitoring for more pulses of
-            // the same length.
-            if (g_NresetCount == COMMSSWITCH_NUM_PULSES_FOR_USB)
+            if (Action == RESET_PULSE_DETECTED)
             {
-                // Reset the bridge. The host may have upgraded aXiom FW or loaded a new CFG.
+                g_NresetCount++;
+
+                if (g_NresetCount >= COMMSSWITCH_NUM_PULSES_FOR_USB)
+                {
+                    // Correct number of resets seen within the window.
+
+                    g_NresetCount = 0;
+                    g_ModeState = USBMODE_IDLE;
+
+                    // Send a 100ms pulse on nRESET to confirm the mode switch.
+                    Configure_nRESET(NRESET_OUTPUT);
+
+                    // Temporarily raise the systick interrupt so we can delay here.
+                    // A bit dirty, but we're about to become idle anyway.
+                    HAL_NVIC_SetPriority(SysTick_IRQn, 0U, 0U);
+                    HAL_Delay(150);
+                    HAL_NVIC_SetPriority(SysTick_IRQn, TICK_INT_PRIORITY, 0U);
+                    HAL_GPIO_WritePin(nRESET_GPIO_Port, NRESET_PIN, SET);
+
+                    // Reset the bridge to restart USB comms.
+                    Device_DeInit(false);
+                    RestartBridge();
+                }
             }
-            else
+            else if (RESET_WINDOW_ELAPSED)
             {
-                // Not enough pulses sent within the window, reset the count.
-                g_NresetCount = 0U;
+                // Not enough resets were seen, reset and wait for another window to be started.
+                g_NresetCount = 0;
                 g_ModeState = I2CMODE_IDLE;
             }
             break;
