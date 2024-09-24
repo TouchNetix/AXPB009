@@ -44,10 +44,8 @@
 /*============ Defines ============*/
 #define u34                         (0x34u)
 #define u35                         (0x35u)
-#define GOT_DATA                     (0x01u)
-#define NO_DATA                        (0x0Au)
-#define WRITE                       (0x00u)
-#define READ                        (0x80u)
+#define GOT_DATA                    (0x01u)
+#define NO_DATA                     (0x0Au)
 #define MAX_NUM_HID_PARAMETERS      (16)
 #define VID                         (1)
 #define PID                         (2)

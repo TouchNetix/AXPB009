@@ -47,7 +47,6 @@
 #define GOT_DATA     (1)
 #define POLLING     (0x00) // polls the connected device periodically --> timer based
 #define INTERRUPT   (0x03) // waits for connected device to pull nIRQ line low --> indicates report available
-#define READ        (0x80)
 #define PROXY_FLAG  (0x9Au) // "magic flag" for repeat proxy data
 
 /*============ Local Variables ============*/

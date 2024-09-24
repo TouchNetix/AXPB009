@@ -48,8 +48,6 @@
 #include "Timers_and_LEDs.h"
 
 /*============ Defines ============*/
-#define READ                            (0x80)
-#define WRITE                           (0x00)
 #define PROXY_SETTINGS_OK               (0x00u)
 #define INVALID_SETTINGS                (0x01u)
 #define INVALID_COMMAND                 (0x99u)

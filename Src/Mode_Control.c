@@ -39,10 +39,11 @@
 #include "usbd_mouse.h"
 #include "usbd_mouse_if.h"
 #include "Usage_Builder.h"
+#include "Proxy_driver.h"
 
 /*============ Defines ============*/
-#define COMMSSWITCH_NUM_PULSES_FOR_I2C              (1U)
-#define COMMSSWITCH_NUM_PULSES_FOR_USB              (1U)
+#define COMMSSWITCH_NUM_PULSES_FOR_I2C              (4U)
+#define COMMSSWITCH_NUM_PULSES_FOR_USB              (3U)
 
 /*============ Local Variables ============*/
 uint8_t     g_NresetCount = 0U;
@@ -156,8 +157,6 @@ void Configure_nRESET(uint8_t mode)
 
     if (mode == NRESET_OUTPUT)
     {
-        HAL_NVIC_DisableIRQ(TIM3_IRQn);
-
         HAL_GPIO_WritePin(nRESET_GPIO_Port, NRESET_PIN, SET);
         GPIO_InitStruct.Pin  = NRESET_PIN;
         GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
@@ -168,14 +167,10 @@ void Configure_nRESET(uint8_t mode)
     {
         GPIO_InitStruct.Pin = NRESET_PIN;
         GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-        GPIO_InitStruct.Pull = GPIO_NOPULL;
+        GPIO_InitStruct.Pull = GPIO_PULLUP;
         GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
         GPIO_InitStruct.Alternate = GPIO_AF1_TIM3;
         HAL_GPIO_Init(nRESET_GPIO_Port, &GPIO_InitStruct);
-
-        /* TIM3 interrupt Init */
-        HAL_NVIC_SetPriority(TIM3_IRQn, 1, 0);
-        HAL_NVIC_EnableIRQ(TIM3_IRQn);
     }
     else
     {
@@ -246,8 +241,10 @@ void Bridge_Comms_Switch_State_Machine(uint8_t Action)
             if (Action == RESET_PULSE_DETECTED)
             {
                 g_NresetCount++;
-
-                if (g_NresetCount >= COMMSSWITCH_NUM_PULSES_FOR_I2C)
+            }
+            else if (RESET_WINDOW_ELAPSED)
+            {
+                if (g_NresetCount == COMMSSWITCH_NUM_PULSES_FOR_I2C)
                 {
                     // Correct number of resets seen within the window.
 
@@ -274,26 +271,30 @@ void Bridge_Comms_Switch_State_Machine(uint8_t Action)
                     Configure_nRESET(NRESET_OUTPUT);
 
                     // Send a 100ms pulse to signify to host that the mode is switching.
-                    HAL_GPIO_WritePin(nRESET_GPIO_Port, NRESET_PIN, RESET);
-
                     // Temporarily raise the systick interrupt so we can delay here.
                     // A bit dirty, but we're about to become idle anyway.
-                    HAL_NVIC_SetPriority(SysTick_IRQn, 0U, 0U);
+                    HAL_GPIO_WritePin(nRESET_GPIO_Port, NRESET_PIN, RESET);
                     HAL_Delay(150);
-                    HAL_NVIC_SetPriority(SysTick_IRQn, TICK_INT_PRIORITY, 0U);
                     HAL_GPIO_WritePin(nRESET_GPIO_Port, NRESET_PIN, SET);
 
                     // Re-initialise nRESET for TIM3.
                     Configure_nRESET(NRESET_INPUT);
 
+                    // Make sure TIM3 is configured to look for the correct edge.
+                    htim3.Instance->CCER &= ~((1 << TIM_CCER_CC4NP_Pos) & TIM_CCER_CC4NP_Msk);
+                    htim3.Instance->CCER |= ((1 << TIM_CCER_CC4P_Pos) & TIM_CCER_CC4P_Msk);
+
+                    boProxyEnabled = false;
+                    boInternalProxy = false;
+
                     g_ModeState = I2CMODE_IDLE;
                 }
-            }
-            else if (RESET_WINDOW_ELAPSED)
-            {
-                // Not enough resets were seen, reset and wait for another window to be started.
-                g_NresetCount = 0;
-                g_ModeState = USBMODE_IDLE;
+                else
+                {
+                    // Not enough resets were seen, reset and wait for another window to be started.
+                    g_NresetCount = 0;
+                    g_ModeState = USBMODE_IDLE;
+                }
             }
 
             break;
@@ -317,8 +318,10 @@ void Bridge_Comms_Switch_State_Machine(uint8_t Action)
             if (Action == RESET_PULSE_DETECTED)
             {
                 g_NresetCount++;
-
-                if (g_NresetCount >= COMMSSWITCH_NUM_PULSES_FOR_USB)
+            }
+            else if (RESET_WINDOW_ELAPSED)
+            {
+                if (g_NresetCount == COMMSSWITCH_NUM_PULSES_FOR_USB)
                 {
                     // Correct number of resets seen within the window.
 
@@ -330,21 +333,20 @@ void Bridge_Comms_Switch_State_Machine(uint8_t Action)
 
                     // Temporarily raise the systick interrupt so we can delay here.
                     // A bit dirty, but we're about to become idle anyway.
-                    HAL_NVIC_SetPriority(SysTick_IRQn, 0U, 0U);
+                    HAL_GPIO_WritePin(nRESET_GPIO_Port, NRESET_PIN, RESET);
                     HAL_Delay(150);
-                    HAL_NVIC_SetPriority(SysTick_IRQn, TICK_INT_PRIORITY, 0U);
                     HAL_GPIO_WritePin(nRESET_GPIO_Port, NRESET_PIN, SET);
 
                     // Reset the bridge to restart USB comms.
                     Device_DeInit(false);
                     RestartBridge();
                 }
-            }
-            else if (RESET_WINDOW_ELAPSED)
-            {
-                // Not enough resets were seen, reset and wait for another window to be started.
-                g_NresetCount = 0;
-                g_ModeState = I2CMODE_IDLE;
+                else
+                {
+                    // Not enough resets were seen, reset and wait for another window to be started.
+                    g_NresetCount = 0;
+                    g_ModeState = I2CMODE_IDLE;
+                }
             }
             break;
         }

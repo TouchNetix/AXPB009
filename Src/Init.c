@@ -205,11 +205,12 @@ void Device_Init(void)
     HAL_GPIO_WritePin(LED_USB_GPIO_Port, LED_USB_Pin, GPIO_PIN_RESET);
 
     // Setup the nRESET monitoring state machine.
-//    Configure_nRESET(NRESET_INPUT);
-    HAL_GPIO_DeInit(nRESET_GPIO_Port, NRESET_PIN);
     TIM3_Init();
-    TIM17_Init();
+    htim3.Instance->SR &= ~TIM_SR_UIF_Msk;
     HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);
+
+    TIM17_Init();
+    htim17.Instance->SR &= ~TIM_SR_UIF_Msk;
 
     if(BridgeMode == PARALLEL_DIGITIZER) // set comms parameters for device to work in digitizer mode (noone else to set these!)
     {

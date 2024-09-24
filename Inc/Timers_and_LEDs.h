@@ -37,6 +37,8 @@
 
 /*============ Defines ============*/
 #define TIM3_PERIOD (65535U)
+#define TIM3_5MS    (50U)
+#define TIM3_50MS   (500U)
 
 /*============ Exported Variables ============*/
 extern uint32_t aXiom_activity_counter;
@@ -45,6 +47,11 @@ extern bool     boAxiomActivity;
 extern bool     boUSBActivity;
 extern bool     boFlashAxiomLED;
 extern bool     boFlashUSBLED;
+extern bool     g_ResetWindowElapsed;
+extern bool     g_FallingEdgeCaptured;
+extern bool     g_RisingEdgeCaptured;
+extern uint32_t g_StartTimeCount;
+extern uint32_t g_EndTimeCount;
 
 /*============ Exported Functions ============*/
 extern void LED_control(void);

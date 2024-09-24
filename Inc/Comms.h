@@ -36,8 +36,13 @@
 /*============ Exported Defines ============*/
 #define I2C                    (0U)
 #define SPI                    (1U)
+
+#define WRITE               (0x00u)
+#define READ                (0x80u)
+
 #define SPI_CMD_BYTES          (4U)
 #define SPI_PADDING_BYTES     (32U) //(32 * sizeof(uint8_t))
+
 #define COMMS_OK            (0x00U)
 #define COMMS_ERROR         (0x01U)
 #define COMMS_TIMEOUT       (0x02U)
