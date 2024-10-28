@@ -254,6 +254,12 @@ void Bridge_Comms_Switch_State_Machine(uint8_t Action)
                     // that the mode is switching.
                     USBD_Stop(&hUsbDeviceFS);
                     USBD_DeInit(&hUsbDeviceFS);
+                    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11 | GPIO_PIN_12);
+
+                    // Really make sure the USB is disconnected. Without the forced reset the bridge will appear as an error in Windows.
+                    HAL_NVIC_DisableIRQ(USB_IRQn);
+                    __HAL_RCC_USB_FORCE_RESET();
+                    __HAL_RCC_USB_RELEASE_RESET();
 
                     // De-initialise GPIOs.
                     HAL_GPIO_DeInit(GPIOA, SPI_SCK_Pin|SPI_MISO_Pin|SPI_MOSI_Pin|nSS_SPI);
@@ -268,11 +274,9 @@ void Bridge_Comms_Switch_State_Machine(uint8_t Action)
                     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
                     GPIO_InitStruct.Pull = GPIO_NOPULL;
                     HAL_GPIO_Init(SPI_MISO_GPIO_Port, &GPIO_InitStruct);
-                    Configure_nRESET(NRESET_OUTPUT);
 
                     // Send a 100ms pulse to signify to host that the mode is switching.
-                    // Temporarily raise the systick interrupt so we can delay here.
-                    // A bit dirty, but we're about to become idle anyway.
+                    Configure_nRESET(NRESET_OUTPUT);
                     HAL_GPIO_WritePin(nRESET_GPIO_Port, NRESET_PIN, RESET);
                     HAL_Delay(150);
                     HAL_GPIO_WritePin(nRESET_GPIO_Port, NRESET_PIN, SET);
@@ -330,9 +334,6 @@ void Bridge_Comms_Switch_State_Machine(uint8_t Action)
 
                     // Send a 100ms pulse on nRESET to confirm the mode switch.
                     Configure_nRESET(NRESET_OUTPUT);
-
-                    // Temporarily raise the systick interrupt so we can delay here.
-                    // A bit dirty, but we're about to become idle anyway.
                     HAL_GPIO_WritePin(nRESET_GPIO_Port, NRESET_PIN, RESET);
                     HAL_Delay(150);
                     HAL_GPIO_WritePin(nRESET_GPIO_Port, NRESET_PIN, SET);
