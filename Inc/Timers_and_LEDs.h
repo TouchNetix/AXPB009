@@ -48,10 +48,6 @@ extern bool     boUSBActivity;
 extern bool     boFlashAxiomLED;
 extern bool     boFlashUSBLED;
 extern bool     g_ResetWindowElapsed;
-extern bool     g_FallingEdgeCaptured;
-extern bool     g_RisingEdgeCaptured;
-extern uint32_t g_StartTimeCount;
-extern uint32_t g_EndTimeCount;
 
 /*============ Exported Functions ============*/
 extern void LED_control(void);

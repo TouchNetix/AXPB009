@@ -63,5 +63,7 @@ extern TIM_HandleTypeDef htim17;
 void Device_Init(void);
 void SystemClock_Config(void);
 void Custom_EXTI_Setup(uint8_t GPIO_Pin, uint8_t GPIOx, uint8_t trigger_mode);
+void TIM3_Init(void);
+void TIM3_Deinit(void);
 
 #endif /* INIT_H_ */

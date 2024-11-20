@@ -53,10 +53,6 @@ bool     boUSBActivity = 0;
 bool     boFlashAxiomLED = 0;
 bool     boFlashUSBLED = 0;
 bool     g_ResetWindowElapsed = false;
-bool     g_FallingEdgeCaptured = false;
-bool     g_RisingEdgeCaptured = false;
-uint32_t g_StartTimeCount = 0;
-uint32_t g_EndTimeCount = 0;
 
 /*============ Local Functions ============*/
 
@@ -185,6 +181,12 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
     if (htim == &htim3)
     {
+        static uint32_t nResetStartTime = 0;
+        static uint32_t nResetEndTime = 0;
+
+        static bool FallingEdgeCaptured = false;
+        static bool RisingEdgeCaptured = false;
+
         // Get the current edge setting.
         // 0 - Configured for rising edge detection.
         // 1 - Configured for falling edge detection.
@@ -193,22 +195,91 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
         if (edge == 1)
         {
             // Just had a falling edge, configure for a rising edge.
-            g_StartTimeCount = htim->Instance->CCR4;
+            nResetStartTime = htim->Instance->CCR4;
             uint32_t CCER = htim3.Instance->CCER;
             CCER &= ~((1 << TIM_CCER_CC4NP_Pos) & TIM_CCER_CC4NP_Msk);
             CCER &= ~((1 << TIM_CCER_CC4P_Pos) & TIM_CCER_CC4P_Msk);
             htim3.Instance->CCER = CCER;
-            g_FallingEdgeCaptured = true;
+            FallingEdgeCaptured = true;
         }
         else
         {
             // Just had a rising edge, configure for a falling edge.
-            g_EndTimeCount = htim->Instance->CCR4;
+            nResetEndTime = htim->Instance->CCR4;
             uint32_t CCER = htim3.Instance->CCER;
             CCER &= ~((1 << TIM_CCER_CC4NP_Pos) & TIM_CCER_CC4NP_Msk);
             CCER |= ((1 << TIM_CCER_CC4P_Pos) & TIM_CCER_CC4P_Msk);
             htim3.Instance->CCER = CCER;
-            g_RisingEdgeCaptured = true;
+            RisingEdgeCaptured = true;
+        }
+
+        if ((FallingEdgeCaptured == true) && (RisingEdgeCaptured == true))
+        {
+            // Missed the pulse, or it was too short to measure.
+            FallingEdgeCaptured = false;
+            RisingEdgeCaptured = false;
+
+            uint8_t Mode = Get_Bridge_Comms_State();
+            if ((Mode == NRESETACTIVITYDETECTED_USB) || (Mode == NRESETACTIVITYDETECTED_I2C))
+            {
+                // Calculate how long the pulse was - 1 tick is 100us.
+                uint32_t PulseLengthInTicks;
+                if (nResetEndTime < nResetStartTime)
+                {
+                    // The count register has wrapped around.
+                    PulseLengthInTicks = (TIM3_PERIOD - nResetStartTime) + nResetEndTime;
+                }
+                else
+                {
+                    PulseLengthInTicks = nResetEndTime - nResetStartTime;
+                }
+
+                // Only count pulses that are between 5ms and 50ms long.
+                if ((PulseLengthInTicks >= TIM3_5MS) && (PulseLengthInTicks <= TIM3_50MS))
+                {
+                    g_NresetCount++;
+                }
+            }
+        }
+        else if (FallingEdgeCaptured == true)
+        {
+            // Start of pulse detected.
+            FallingEdgeCaptured = false;
+
+            uint8_t Mode = Get_Bridge_Comms_State();
+            if ((Mode == USBMODE_IDLE) || (Mode == I2CMODE_IDLE))
+            {
+                // First reset seen this window, start the 500ms timer.
+                HAL_TIM_Base_Start_IT(&htim17);
+                Bridge_Comms_Switch_State_Machine(ACTIVITY_DETECTED);
+            }
+        }
+        else if (RisingEdgeCaptured == true)
+        {
+            // End of pulse detected.
+            RisingEdgeCaptured = false;
+
+            // Calculate how long the pulse was - 1 tick is 100us.
+            uint32_t PulseLengthInTicks;
+            if (nResetEndTime < nResetStartTime)
+            {
+                // The count register has wrapped around.
+                PulseLengthInTicks = (TIM3_PERIOD - nResetStartTime) + nResetEndTime;
+            }
+            else
+            {
+                PulseLengthInTicks = nResetEndTime - nResetStartTime;
+            }
+
+            // Only count pulses that are between 5ms and 50ms long.
+            if ((PulseLengthInTicks >= TIM3_5MS) && (PulseLengthInTicks <= TIM3_50MS))
+            {
+                g_NresetCount++;
+            }
+        }
+        else
+        {
+            // Nothing to do.
         }
     }
 }

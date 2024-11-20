@@ -46,11 +46,10 @@
 #define COMMSSWITCH_NUM_PULSES_FOR_USB              (3U)
 
 /*============ Local Variables ============*/
-uint8_t     g_NresetCount = 0U;
-uint32_t    g_WindowMonitorStartCount = 0U;
 uint8_t     g_ModeState = USBMODE_IDLE;
 
 /*============ Exported Variables ============*/
+uint8_t g_NresetCount   = 0U;
 uint8_t WakeupMode      = 0;
 bool    boBlockReports  = 0;    // when the host sends a command that needs a response it's likely the bridge will send back a few proxy reports before replying (not good!) so can use this
                                 // to block any sending until the command has been processed
@@ -238,11 +237,7 @@ void Bridge_Comms_Switch_State_Machine(uint8_t Action)
 
         case NRESETACTIVITYDETECTED_USB:
         {
-            if (Action == RESET_PULSE_DETECTED)
-            {
-                g_NresetCount++;
-            }
-            else if (RESET_WINDOW_ELAPSED)
+            if (Action == RESET_WINDOW_ELAPSED)
             {
                 if (g_NresetCount == COMMSSWITCH_NUM_PULSES_FOR_I2C)
                 {
@@ -260,6 +255,9 @@ void Bridge_Comms_Switch_State_Machine(uint8_t Action)
                     HAL_NVIC_DisableIRQ(USB_IRQn);
                     __HAL_RCC_USB_FORCE_RESET();
                     __HAL_RCC_USB_RELEASE_RESET();
+
+                    // De-init the timer looking for edges on nRESET.
+                    TIM3_Deinit();
 
                     // De-initialise GPIOs.
                     HAL_GPIO_DeInit(GPIOA, SPI_SCK_Pin|SPI_MISO_Pin|SPI_MOSI_Pin|nSS_SPI);
@@ -284,9 +282,8 @@ void Bridge_Comms_Switch_State_Machine(uint8_t Action)
                     // Re-initialise nRESET for TIM3.
                     Configure_nRESET(NRESET_INPUT);
 
-                    // Make sure TIM3 is configured to look for the correct edge.
-                    htim3.Instance->CCER &= ~((1 << TIM_CCER_CC4NP_Pos) & TIM_CCER_CC4NP_Msk);
-                    htim3.Instance->CCER |= ((1 << TIM_CCER_CC4P_Pos) & TIM_CCER_CC4P_Msk);
+                    // Re-configure the timers.
+                    TIM3_Init();
 
                     boProxyEnabled = false;
                     boInternalProxy = false;
@@ -319,11 +316,7 @@ void Bridge_Comms_Switch_State_Machine(uint8_t Action)
 
         case NRESETACTIVITYDETECTED_I2C:
         {
-            if (Action == RESET_PULSE_DETECTED)
-            {
-                g_NresetCount++;
-            }
-            else if (RESET_WINDOW_ELAPSED)
+            if (Action == RESET_WINDOW_ELAPSED)
             {
                 if (g_NresetCount == COMMSSWITCH_NUM_PULSES_FOR_USB)
                 {

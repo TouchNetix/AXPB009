@@ -252,91 +252,12 @@ void Error_Handler(void)
 
 void ResetLogic(void)
 {
-    static uint32_t nResetStartTime = 0;
-    static uint32_t nResetEndTime = 0;
-
-    bool FallingEdgeCaptured = g_FallingEdgeCaptured;
-    bool RisingEdgeCaptured = g_RisingEdgeCaptured;
     bool ResetWindowElapsed = g_ResetWindowElapsed;
 
     if (ResetWindowElapsed == true)
     {
         g_ResetWindowElapsed = false;
         Bridge_Comms_Switch_State_Machine(RESET_WINDOW_ELAPSED);
-    }
-
-    if ((FallingEdgeCaptured == true) && (RisingEdgeCaptured == true))
-    {
-        // Missed the pulse, or it was too short to measure.
-        g_FallingEdgeCaptured = false;
-        g_RisingEdgeCaptured = false;
-
-        uint8_t Mode = Get_Bridge_Comms_State();
-        if ((Mode == NRESETACTIVITYDETECTED_USB) || (Mode == NRESETACTIVITYDETECTED_I2C))
-        {
-            nResetStartTime = g_StartTimeCount;
-            nResetEndTime = g_EndTimeCount;
-
-            // Calculate how long the pulse was - 1 tick is 100us.
-            uint32_t PulseLengthInTicks;
-            if (nResetEndTime < nResetStartTime)
-            {
-                // The count register has wrapped around.
-                PulseLengthInTicks = (TIM3_PERIOD - nResetStartTime) + nResetEndTime;
-            }
-            else
-            {
-                PulseLengthInTicks = nResetEndTime - nResetStartTime;
-            }
-
-            // Only count pulses that are between 5ms and 50ms long.
-            if ((PulseLengthInTicks >= TIM3_5MS) && (PulseLengthInTicks <= TIM3_50MS))
-            {
-                Bridge_Comms_Switch_State_Machine(RESET_PULSE_DETECTED);
-            }
-        }
-    }
-    else if (FallingEdgeCaptured == true)
-    {
-        // Start of pulse detected.
-        g_FallingEdgeCaptured = false;
-        nResetStartTime = g_StartTimeCount;
-
-        uint8_t Mode = Get_Bridge_Comms_State();
-        if ((Mode == USBMODE_IDLE) || (Mode == I2CMODE_IDLE))
-        {
-            // First reset seen this window, start the 500ms timer.
-            HAL_TIM_Base_Start_IT(&htim17);
-            Bridge_Comms_Switch_State_Machine(ACTIVITY_DETECTED);
-        }
-    }
-    else if (RisingEdgeCaptured == true)
-    {
-        // End of pulse detected.
-        g_RisingEdgeCaptured = false;
-        nResetEndTime = g_EndTimeCount;
-
-        // Calculate how long the pulse was - 1 tick is 100us.
-        uint32_t PulseLengthInTicks;
-        if (nResetEndTime < nResetStartTime)
-        {
-            // The count register has wrapped around.
-            PulseLengthInTicks = (TIM3_PERIOD - nResetStartTime) + nResetEndTime;
-        }
-        else
-        {
-            PulseLengthInTicks = nResetEndTime - nResetStartTime;
-        }
-
-        // Only count pulses that are between 5ms and 50ms long.
-        if ((PulseLengthInTicks >= TIM3_5MS) && (PulseLengthInTicks <= TIM3_50MS))
-        {
-            Bridge_Comms_Switch_State_Machine(RESET_PULSE_DETECTED);
-        }
-    }
-    else
-    {
-        // Nothing to do.
     }
 }
 

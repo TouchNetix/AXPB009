@@ -67,7 +67,6 @@ TIM_HandleTypeDef htim17;
 static  uint8_t check_comms_mode(void);
 static  void    GPIO_Init(void);
 static  void    DMA_Init(void);
-static  void    TIM3_Init(void);
 static  void    TIM16_Init(void);
 static  void    TIM17_Init(void);
 static  void    LEDs_Init(void);
@@ -206,8 +205,6 @@ void Device_Init(void)
 
     // Setup the nRESET monitoring state machine.
     TIM3_Init();
-    htim3.Instance->SR &= ~TIM_SR_UIF_Msk;
-    HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);
 
     TIM17_Init();
     htim17.Instance->SR &= ~TIM_SR_UIF_Msk;
@@ -258,6 +255,51 @@ void Custom_EXTI_Setup(uint8_t GPIO_Pin, uint8_t GPIOx, uint8_t trigger_mode)
         EXTI->RTSR  |= (1 << GPIO_Pin);
     }
 
+}
+
+//--------------------------
+
+void TIM3_Init(void)
+{
+    TIM_MasterConfigTypeDef sMasterConfig = {0};
+    TIM_IC_InitTypeDef sConfigIC = {0};
+
+    htim3.Instance = TIM3;
+    htim3.Init.Prescaler = (SYSTEMCLOCK_IN_MHZ * 100U) - 1U; // Increment every 100us.
+    htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+    htim3.Init.Period = TIM3_PERIOD;
+    htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    if (HAL_TIM_IC_Init(&htim3) != HAL_OK)
+    {
+      Error_Handler();
+    }
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+    if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+    {
+      Error_Handler();
+    }
+    sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_FALLING;
+    sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+    sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+    sConfigIC.ICFilter = 15;
+    if (HAL_TIM_IC_ConfigChannel(&htim3, &sConfigIC, TIM_CHANNEL_4) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    htim3.Instance->SR &= ~TIM_SR_UIF_Msk;
+    HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);
+}
+
+//--------------------------
+
+void TIM3_Deinit(void)
+{
+    HAL_TIM_IC_DeInit(&htim3);
+    __HAL_RCC_TIM3_FORCE_RESET();
+    __HAL_RCC_TIM3_RELEASE_RESET();
 }
 
 /*============ Initialisation Functions ============*/
@@ -474,39 +516,6 @@ static void LEDs_Init(void)
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(LED_AXIOM_GPIO_Port, &GPIO_InitStruct);
-}
-
-//--------------------------
-
-static void TIM3_Init(void)
-{
-    TIM_MasterConfigTypeDef sMasterConfig = {0};
-    TIM_IC_InitTypeDef sConfigIC = {0};
-
-    htim3.Instance = TIM3;
-    htim3.Init.Prescaler = (SYSTEMCLOCK_IN_MHZ * 100U) - 1U; // Increment every 100us.
-    htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim3.Init.Period = TIM3_PERIOD;
-    htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-    htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-    if (HAL_TIM_IC_Init(&htim3) != HAL_OK)
-    {
-      Error_Handler();
-    }
-    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-    if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
-    {
-      Error_Handler();
-    }
-    sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_FALLING;
-    sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
-    sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-    sConfigIC.ICFilter = 15;
-    if (HAL_TIM_IC_ConfigChannel(&htim3, &sConfigIC, TIM_CHANNEL_4) != HAL_OK)
-    {
-      Error_Handler();
-    }
 }
 
 //--------------------------

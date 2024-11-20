@@ -38,6 +38,7 @@
 /*============ Exported Variables ============*/
 extern  bool    boMouseEnabled;
 extern  bool    boBlockReports;
+extern  uint8_t g_NresetCount;
 
 /*============ Exported Defines ============*/
 #define NRESET_OUTPUT               (0U)
