@@ -78,6 +78,7 @@
 #define MOUSE_HID_EPIN_ADDR                   (0x1B8)
 #define MOUSE_HID_EPIN_SIZE                   (0x36) // 54 bytes
 
+#define USB_COMPOSITE_HID_CONFIG_DESC_SIZE_SINGLE_ITF   (41)
 #define USB_COMPOSITE_HID_CONFIG_DESC_SIZE              (98)
 #define USB_COMPOSITE_HID_CONFIG_NO_DIGITIZER_DESC_SIZE (73)
 #define USB_COMPOSITE_HID_DESC_SIZE                     (9)

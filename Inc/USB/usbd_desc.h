@@ -75,8 +75,8 @@
 #define DEVICE_MODE_PID_ABSOLUTE_MOUSE          (0x2F08u)
 #define USBD_LANGID_STRING                      (1033)
 #define USBD_MANUFACTURER_STRING                "TouchNetix"
-#define USBD_PRODUCT_STRING_FS                  "AXPB009"
-#define USBD_CONFIGURATION_STRING_FS            "AXPB009"
+#define USBD_PRODUCT_STRING_FS                  "AXPB009 Control"
+#define USBD_CONFIGURATION_STRING_FS            "AXPB009 Control"
 #define USBD_INTERFACE_GENERIC_STRING_FS        "AXPB009 Control"
 #define USBD_INTERFACE_GENERIC_DIGI_STRING_FS   "AXPB009 Control"
 #define USBD_INTERFACE_DIGITIZER_ON_STRING_FS   "AXPB009 Digitizer"

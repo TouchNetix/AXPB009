@@ -177,16 +177,19 @@ void GetMouseDescriptorLength(uint8_t BridgeMode)
 // CUSTOMISED - alters the number of interfaces presented to host --> enables/disables the mouse interface
 void ConfigureCfgDescriptor(uint8_t MousMode)
 {
-    if(BridgeMode == ABSOLUTE_MOUSE || BridgeMode == PARALLEL_DIGITIZER)  // mouse/digitizer enabled
-    {
-        boMouseEnabled = true;
-        NumInterfaces = 3;
-    }
-    else
-    {
-        boMouseEnabled = false;
-        NumInterfaces = 2;
-    }
+    NumInterfaces = 1;
+    boMouseEnabled = false;
+
+//    if(BridgeMode == ABSOLUTE_MOUSE || BridgeMode == PARALLEL_DIGITIZER)  // mouse/digitizer enabled
+//    {
+//        boMouseEnabled = true;
+//        NumInterfaces = 3;
+//    }
+//    else
+//    {
+//        boMouseEnabled = false;
+//        NumInterfaces = 2;
+//    }
 }
 
 // CUSTOMISED - adjust the PID of the device to match the mode we're operating in (allows TouchHub to know what to expect)
