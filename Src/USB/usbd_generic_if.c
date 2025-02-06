@@ -56,25 +56,26 @@ __ALIGN_BEGIN static uint8_t GENERIC_HID_ReportDesc_FS[USBD_GENERIC_HID_REPORT_D
     0x06, 0xFF, 0xFF,   // 04|2   , Usage Page (vendor defined?)
     0x09, 0x01,         // 08|1   , Usage      (vendor defined
     0xA1, 0x01,         // A0|1   , Collection (Application)
-    /* 7 bytes */
+    0x85u, REPORT_ID_CONTROL, // Report ID
+    /* 9 bytes */
 
     // IN report
     0x09, 0x01,         // 08|1   , Usage      (vendor defined)
     0x15, 0x00,         // 14|1   , Logical Minimum(0 for signed byte?)
     0x26, 0xFF, 0x00,   // 24|1   , Logical Maximum(255 for signed byte?)
     0x75, 0x08,         // 74|1   , Report Size(8) = field size in bits = 1 byte
-    0x95, USBD_GENERIC_HID_REPORT_IN_SIZE,		// 94|2 ReportCount(size) = repeat count of previous item, 64 byte IN report
+    0x95, (USBD_GENERIC_HID_REPORT_IN_SIZE - 1),		// 94|2 ReportCount(size) = repeat count of previous item, 64 byte IN report
     0x81, 0x02,         // 80|1   , IN report (Data,Variable, Absolute)
-    /* 20 bytes */
+    /* 22 bytes */
 
     // OUT report
     0x09, 0x02,         // 08|1   , Usage      (vendor defined)
     0x15, 0x00,         // 14|1   , Logical Minimum(0 for signed byte?)
     0x26, 0xFF, 0x00,   // 24|1   , Logical Maximum(255 for signed byte?)
     0x75, 0x08,         // 74|1   , Report Size(8) = field size in bits = 1 byte
-    0x95, USBD_GENERIC_HID_REPORT_OUT_SIZE,   // 94|2 ReportCount(size) = repeat count of previous item, 64 byte OUT report
+    0x95, (USBD_GENERIC_HID_REPORT_OUT_SIZE - 1),   // 94|2 ReportCount(size) = repeat count of previous item, 64 byte OUT report
     0x91, 0x02,         // 90|1   , OUT report (Data,Variable, Absolute)
-    /* 33 bytes */
+    /* 35 bytes */
 
     // Feature report
     0x09, 0x03,         // 08|1   , Usage      (vendor defined)
@@ -84,7 +85,7 @@ __ALIGN_BEGIN static uint8_t GENERIC_HID_ReportDesc_FS[USBD_GENERIC_HID_REPORT_D
     0x95, USBD_GENERIC_HID_FEATURE_SIZE,         // 94|1   , ReportCount in byte
     0xB1, 0x02,         // B0|1   , Feature report
     0xC0                // C0|0   , End Collection
-    /* 47 bytes */
+    /* 49 bytes */
 };
 
 /*============ Local Function Prototypes ============*/

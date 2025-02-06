@@ -411,6 +411,8 @@ uint8_t Send_USB_Report(uint8_t interface,USBD_HandleTypeDef  *pdev, uint8_t *re
         {
             case GENERIC:
             {
+                memmove(&report[1], &report[0], len);
+                report[0] = REPORT_ID_CONTROL;
                 status = SendReport_ControlEndpoint(pdev, report, len);
                 break;
             }

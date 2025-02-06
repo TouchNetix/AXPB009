@@ -31,6 +31,7 @@
 #include "Comms.h"
 
 /*============ Exported Defines ============*/
+#define REPORT_ID_CONTROL   (0x01U)
 
 /*============ Exported Types ============*/
 extern USBD_GENERIC_HID_ItfTypeDef USBD_GenericHID_fops_FS; /** GENERIC_HID Interface callback. */

@@ -185,9 +185,9 @@ void ProcessTBPCommand()
     bool boRespondNow = 1;   // indicates the host is waiting for some sort of reply (normally status) - Unless specified, all commands send a response
 
     // if proxy mode is active and command comes via control endpoint, normally means host wants bridge to stop proxy so clear bit and de-init the interrupt line
-    if(target_interface == GENERIC_INTERFACE_NUM)
+    if((target_interface == GENERIC_INTERFACE_NUM) && (pTBPCommandReportGeneric[0] == REPORT_ID_CONTROL))
     {
-        pTBPCommandReport = pTBPCommandReportGeneric;
+        pTBPCommandReport = &pTBPCommandReportGeneric[1]; // Index 0 contains the report ID.
 
         // clear all proxy flags --> makes sure the process doesn't start halfway through next time
         boInternalProxy = 0;

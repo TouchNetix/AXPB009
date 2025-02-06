@@ -93,7 +93,7 @@ extern PCD_HandleTypeDef hpcd_USB_FS;
 #define USBD_MOUSE_HID_OUTREPORT_BUF_SIZE       (64)
 #define USBD_PRESS_HID_OUTREPORT_BUF_SIZE       (64)
 /*---------- -----------*/
-#define USBD_GENERIC_HID_REPORT_DESC_SIZE       (47)
+#define USBD_GENERIC_HID_REPORT_DESC_SIZE       (49)
 #define USBD_PRESS_HID_REPORT_DESC_SIZE         (53)
  /*---------- -----------*/
 #define USBD_MOUSE_ABS_REPORT_DESC_SIZE         (58)
