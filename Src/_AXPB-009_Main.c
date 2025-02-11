@@ -200,7 +200,7 @@ int main(void)
             }
         }
 
-        if((boMouseReportToSend == 1) && (USBD_MOUSE_HID_GetState(&hUsbDeviceFS) == USB_HID_IDLE) && (usb_remote_wake_state == RESUMED))
+        if((boMouseReportToSend == 1) && (USBD_GENERIC_HID_GetState(&hUsbDeviceFS) == USB_HID_IDLE) && (usb_remote_wake_state == RESUMED))
         {
             Send_USB_Report(MOUSE, &hUsbDeviceFS, usb_hid_mouse_report_in, byMouseReportLength);
             boMouseReportToSend = 0;

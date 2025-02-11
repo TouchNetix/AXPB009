@@ -128,8 +128,7 @@ __ALIGN_BEGIN static uint8_t USBD_GENERIC_HID_Desc[USB_GENERIC_HID_DESC_SIZ] __A
   0x00,         /*bCountryCode: Hardware target country*/
   0x01,         /*bNumDescriptors: Number of GENERIC_HID class descriptors to follow*/
   0x22,         /*bDescriptorType*/
-  USBD_GENERIC_HID_REPORT_DESC_SIZE,/*wItemLength: Total length of Report descriptor*/
-  0x00,
+  LOBYTE(USBD_GENERIC_HID_REPORT_DESC_SIZE), HIBYTE(USBD_GENERIC_HID_REPORT_DESC_SIZE), /*wItemLength: Total length of Report descriptor*/
 };
 
 /* USB Standard Device Descriptor */
@@ -272,8 +271,17 @@ uint8_t  USBD_GENERIC_HID_Setup (USBD_HandleTypeDef *pdev,
     case GENERIC_HID_REQ_SET_REPORT:
       hhid->IsReportAvailable = 1;
       USBD_CtlPrepareRx (pdev, hhid->Report_buf, (uint8_t)(req->wLength));
-
       break;
+
+    case GENERIC_HID_REQ_GET_REPORT:
+        if ((uint8_t)req->wValue == REPORT_ID_DIGI_MAX_COUNT)
+        {
+            u34_TCP_report[0] = REPORT_ID_DIGI_MAX_COUNT;  // report ID
+            u34_TCP_report[1] = 0x05u;  // max no. contacts
+            USBD_CtlSendData(pdev, u34_TCP_report, req->wLength);
+        }
+        break;
+
     default:
       USBD_CtlError (pdev, req);
       return USBD_FAIL;

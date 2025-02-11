@@ -45,6 +45,7 @@
 #include "Press_driver.h"
 #include "Usage_Builder.h"
 #include "Mode_Control.h"
+#include "usbd_generic_if.h"
 
 /*============ Defines ============*/
 #define U41_REPORT              (0x41)
@@ -124,7 +125,7 @@ uint8_t  byNumTouches                                       =  0;
 uint8_t  touch_data[5][8]                                   = {0};
 uint8_t  usb_remote_wake_state                              =  RESUMED;
 bool     boUSBTimeoutEnabled                                =  0;
-bool     boMouseEnabled                                     =  1;       // starts with digitizer enable (TH2 doesn't know the command to toggle it!)
+bool     boMouseEnabled                                     =  true;       // starts with digitizer enable (TH2 doesn't know the command to toggle it!)
 uint8_t  wakeup_option                                      =  0;
 
 /*============ Local Function Prototypes ============*/
@@ -359,7 +360,7 @@ void MultiPointDigitizer(void)
         }
         else // if(usb_remote_wake_state == RESUMED)
         {
-            usb_hid_mouse_report_in[0] = 1; //report number --> relates to the report number found in the report descriptor (allows windows to differentiate between different connected devices)
+            usb_hid_mouse_report_in[0] = REPORT_ID_DIGITIZER; //report number --> relates to the report number found in the report descriptor (allows windows to differentiate between different connected devices)
 
             for(byTouchNum = 1u; byTouchNum <= MAX_NUM_CONTACTS; byTouchNum++) // perform same processing for each touch
             {

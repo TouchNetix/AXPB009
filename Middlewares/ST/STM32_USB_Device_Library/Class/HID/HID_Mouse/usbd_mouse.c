@@ -178,7 +178,6 @@ void GetMouseDescriptorLength(uint8_t BridgeMode)
 void ConfigureCfgDescriptor(uint8_t MousMode)
 {
     NumInterfaces = 1;
-    boMouseEnabled = false;
 
 //    if(BridgeMode == ABSOLUTE_MOUSE || BridgeMode == PARALLEL_DIGITIZER)  // mouse/digitizer enabled
 //    {

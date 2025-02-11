@@ -147,8 +147,7 @@ __ALIGN_BEGIN uint8_t USBD_COMPOSITE_HID_CfgDesc[USB_COMPOSITE_HID_CONFIG_DESC_S
         0x00,                               /* bCountryCode: Hardware target country*/
         0x01,                               /* bNumDescriptors: Number of COMPOSITE_HID class descriptors to follow*/
         0x22,                               /* bDescriptorType*/
-        USBD_GENERIC_HID_REPORT_DESC_SIZE,  /* wItemLength: Total length of Report descriptor*/
-        0x00,
+        LOBYTE(USBD_GENERIC_HID_REPORT_DESC_SIZE), HIBYTE(USBD_GENERIC_HID_REPORT_DESC_SIZE), /* wItemLength: Total length of Report descriptor*/
         /* 27 bytes */
 
         /********************  Generic HID endpoints ********************/
@@ -418,7 +417,7 @@ uint8_t Send_USB_Report(uint8_t interface,USBD_HandleTypeDef  *pdev, uint8_t *re
             }
             case MOUSE:
             {
-                status = SendReport_MouseEndpoint(pdev, report, len);
+                status = SendReport_ControlEndpoint(pdev, report, len);
                 break;
             }
             case PRESS:
