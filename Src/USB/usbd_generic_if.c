@@ -34,6 +34,63 @@
 
 /*============ Defines ============*/
 
+#define DIGITIZER_CONTACT_REPORT                                                                                                                                                      \
+                                                                                                                                                                                      \
+    /* First contact report */                                                                                                                                                        \
+    0x05u, 0x0Du,                         /* USAGE_PAGE (Digitizers) */                                                                                                               \
+    0x09u, 0x22u,                         /* USAGE (Finger) */                                                                                                                        \
+    0xA1u, 0x02u,                         /*     COLLECTION (Logical) */                                                                                                              \
+    0x25u, 0x01u,                         /*     LOGICAL_MAXIMUM (1) */                                                                                                               \
+    0x95u, 0x01u,                         /*     REPORT_COUNT (1) */                                                                                                                  \
+    0x75u, 0x01u,                         /*     REPORT_SIZE (1) */                                                                                                                   \
+                                                                                                                                                                                      \
+    0x09u, 0x42u,                         /*     USAGE (Tip Switch) */                                                                                                                \
+    0x81u, 0x02u,                         /*     INPUT (Data,Var,Abs)     1 Bit = TipSwitch status (Touch / No Touch) */                                                              \
+                                                                                                                                                                                      \
+    0x09u, 0x32u,                         /*     USAGE (In Range) */                                                                                                                  \
+    0x81u, 0x02u,                         /*     INPUT (Data,Var,Abs)     1 Bits = In range */                                                                                        \
+                                                                                                                                                                                      \
+    0x09u, 0x47u,                         /*     USAGE (Confidence) */                                                                                                                \
+    0x81u, 0x02u,                         /*     INPUT (Data,Var,Abs)     1 Bit = Confidence */                                                                                       \
+                                                                                                                                                                                      \
+    0x25u, 0x1Fu,                         /*     LOGICAL_MAXIMUM (31) */                                                                                                              \
+    0x75u, 0x05u,                         /*     REPORT SIZE (5) */                                                                                                                   \
+    0x09u, 0x51u,                         /*     USAGE (CONTACT ID) */                                                                                                                \
+    0x81u, 0x02u,                         /*     INPUT (Data,Var,Abs)     5 Bits = Contact ID */                                                                                      \
+                                                                                                                                                                                      \
+    0x05u, 0x01u,                         /*     USAGE_PAGE (Generic Desktop) */                                                                                                      \
+    0x75u, 0x10u,                         /*     REPORT_SIZE (16) */                                                                                                                  \
+    /* 36 */                                                                                                                                                                          \
+                                                                                                                                                                                      \
+    /* NOTE - having to use 4 bytes for logical and physical values here:                                                                                                             \
+    * if using 2 bytes to report a user requests the maximum possible value according to TH2 (0xFFFF) then we will end up with a negative value (as this is reported in 2s complement)\
+    * so need to stretch to being represented using 4 bytes to prevent this from happening (can't use 3 bytes, hence 4)                                                               \
+    * plus the physical value reported can go above 0xFFFF as we multiply the value read from aXiom by 5 to obtain the correct values                                                 \
+    * (TH2 increments by 0.5mm whilst in here we increment by 0.1mm)                                                                                                                  \
+    */                                                                                                                                                                                \
+    0x27u, 0xFFu, 0x0Fu, 0x00u, 0x00u,    /*     LOGICAL_MAXIMUM  X (default = 4095) */ /* 53(low byte), 56(high byte) */                                                             \
+    0x47u, 0x00u, 0x00u, 0x00u, 0x00u,    /*     PHYSICAL_MAXIMUM X (default = 0) */    /* 58(low byte), 61(high byte) */                                                             \
+    0x09u, 0x30u,                         /*     USAGE (X) */                                                                                                                         \
+    0x81u, 0x02u,                         /*     INPUT (Data,Var,Abs)     16 Bits = X Position */                                                                                     \
+    /* 50 */                                                                                                                                                                          \
+                                                                                                                                                                                      \
+    0x27u, 0xFFu, 0x0Fu, 0x00u, 0x00u,    /*     LOGICAL_MAXIMUM  Y (default = 4095) */ /* 67(low), 70(high) */                                                                       \
+    0x47u, 0x00u, 0x00u, 0x00u, 0x00u,    /*     PHYSICAL_MAXIMUM Y (default = 0) */    /* 72(low byte), 75(high byte) */                                                             \
+    0x09u, 0x31u,                         /*     USAGE (Y) */                                                                                                                         \
+    0x81u, 0x02u,                         /*     INPUT (Data,Var,Abs)     16 Bits = Y Position */                                                                                     \
+    /* 64 */                                                                                                                                                                          \
+                                                                                                                                                                                      \
+    /* Touch Pressure - used to convey z values */                                                                                                                                    \
+    0x05u, 0x0Du,                         /*     USAGE_PAGE (Digitizer) */                                                                                                            \
+    0x09u, 0x30u,                         /*     USAGE (Pressure) */                                                                                                                  \
+    0x26u, 0x00u, 0x04u,                  /*     LOGICAL_MAXIMUM (1024) */                                                                                                            \
+    0x45u, 0x00u,                         /*     PHYSICAL_MAXIMUM (0) */                                                                                                              \
+    0x95u, 0x01u,                         /*     REPORT_COUNT (1) */                                                                                                                  \
+    0x81u, 0x02u,                         /*     INPUT (Data,Var,Abs)     16 Bits */                                                                                                  \
+                                                                                                                                                                                      \
+    0xC0u,                                /* END_COLLECTION (Logical / 1st contact) */                                                                                                \
+    /* 78 */
+
 
 /*============ Macros ============*/
 
@@ -56,8 +113,12 @@ __ALIGN_BEGIN static uint8_t GENERIC_HID_ReportDesc_FS[USBD_GENERIC_HID_REPORT_D
     0x06, 0xFF, 0xFF,   // 04|2   , Usage Page (vendor defined?)
     0x09, 0x01,         // 08|1   , Usage      (vendor defined
     0xA1, 0x01,         // A0|1   , Collection (Application)
+#if COMBINED_REPORT
     0x85u, REPORT_ID_CONTROL, // Report ID
     /* 9 bytes */
+#else
+    /* 7 bytes */
+#endif
 
     // IN report
     0x09, 0x01,         // 08|1   , Usage      (vendor defined)
@@ -87,6 +148,8 @@ __ALIGN_BEGIN static uint8_t GENERIC_HID_ReportDesc_FS[USBD_GENERIC_HID_REPORT_D
     0xC0,               // C0|0   , End Collection
     /* 49 bytes */
 
+#if COMBINED_REPORT
+
     // Top Level Collection - Touchscreen Digitizer */
     0x05u, 0x0Du,                         // USAGE_PAGE (Digitizers) */
     0x09u, 0x04u,                         // USAGE (Touch Screen) */
@@ -102,243 +165,21 @@ __ALIGN_BEGIN static uint8_t GENERIC_HID_ReportDesc_FS[USBD_GENERIC_HID_REPORT_D
     /* 65 */
 
     // First contact report */
-    0x05u, 0x0Du,                         // USAGE_PAGE (Digitizers) */
-    0x09u, 0x22u,                         // USAGE (Finger) */
-    0xA1u, 0x02u,                         //     COLLECTION (Logical) */
-    0x25u, 0x01u,                         //     LOGICAL_MAXIMUM (1) */
-    0x95u, 0x01u,                         //     REPORT_COUNT (1) */
-    0x75u, 0x01u,                         //     REPORT_SIZE (1) */
-
-    0x09u, 0x42u,                         //     USAGE (Tip Switch) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     1 Bit = TipSwitch status (Touch / No Touch) */
-
-    0x09u, 0x32u,                         //     USAGE (In Range) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     1 Bits = In range */
-
-    0x09u, 0x47u,                         //     USAGE (Confidence) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     1 Bit = Confidence */
-
-    0x25u, 0x1Fu,                         //     LOGICAL_MAXIMUM (31) */
-    0x75u, 0x05u,                         //     REPORT SIZE (5) */
-    0x09u, 0x51u,                         //     USAGE (CONTACT ID) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     5 Bits = Contact ID */
-
-    0x05u, 0x01u,                         //     USAGE_PAGE (Generic Desktop) */
-    0x75u, 0x10u,                         //     REPORT_SIZE (16) */
-    /* 50 */
-
-    /* NOTE - having to use 4 bytes for logical and physical values here:
-    * if using 2 bytes to report a user requests the maximum possible value according to TH2 (0xFFFF) then we will end up with a negative value (as this is reported in 2s complement)
-    * so need to stretch to being represented using 4 bytes to prevent this from happening (can't use 3 bytes, hence 4)
-    * plus the physical value reported can go above 0xFFFF as we multiply the value read from aXiom by 5 to obtain the correct values
-    * (TH2 increments by 0.5mm whilst in here we increment by 0.1mm)
-    */
-    0x27u, 0xFFu, 0x0Fu, 0x00u, 0x00u,    //     LOGICAL_MAXIMUM  X (default = 4095) */ /* 53(low byte), 56(high byte) */
-    0x47u, 0x00u, 0x00u, 0x00u, 0x00u,    //     PHYSICAL_MAXIMUM X (default = 0) */    /* 58(low byte), 61(high byte) */
-    0x09u, 0x30u,                         //     USAGE (X) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     16 Bits = X Position */
-    /* 64 */
-
-    0x27u, 0xFFu, 0x0Fu, 0x00u, 0x00u,    //     LOGICAL_MAXIMUM  Y (default = 4095) */ /* 67(low), 70(high) */
-    0x47u, 0x00u, 0x00u, 0x00u, 0x00u,    //     PHYSICAL_MAXIMUM Y (default = 0) */    /* 72(low byte), 75(high byte) */
-    0x09u, 0x31u,                         //     USAGE (Y) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     16 Bits = Y Position */
-    /* 78 */
-
-    /* Touch Pressure - used to convey z values */
-    0x05u, 0x0Du,                         //     USAGE_PAGE (Digitizer) */
-    0x09u, 0x30u,                         //     USAGE (Pressure) */
-    0x26u, 0x00u, 0x04u,                  //     LOGICAL_MAXIMUM (1024) */
-    0x45u, 0x00u,                         //     PHYSICAL_MAXIMUM (0) */
-    0x95u, 0x01u,                         //     REPORT_COUNT (1) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     16 Bits */
-
-    0xC0u,                                // END_COLLECTION (Logical / 1st contact) */
+    DIGITIZER_CONTACT_REPORT
     /* 93 */
 
     // Second Contact */
-    0x05u, 0x0Du,                         // USAGE_PAGE (Digitizers) */
-    0x09u, 0x22u,                         // USAGE (Finger) */
-    0xA1u, 0x02u,                         //     COLLECTION (Logical) */
-    0x25u, 0x01u,                         //     LOGICAL_MAXIMUM (1) */
-    0x95u, 0x01u,                         //     REPORT_COUNT (1) */
-    0x75u, 0x01u,                         //     REPORT_SIZE (1) */
-
-    0x09u, 0x42u,                         //     USAGE (Tip Switch) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     1 Bit = TipSwitch status (Touch / No Touch) */
-
-    0x09u, 0x32u,                         //     USAGE (In Range) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     1 Bits = In range */
-
-    0x09u, 0x47u,                         //     USAGE (Confidence) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     1 Bit = Confidence */
-
-    0x25u, 0x1Fu,                         //     LOGICAL_MAXIMUM (31) */
-    0x75u, 0x05u,                         //     REPORT SIZE (5) */
-    0x09u, 0x51u,                         //     USAGE (CONTACT ID) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     5 Bits = Contact ID */
-
-    0x05u, 0x01u,                         //     USAGE_PAGE (Generic Desktop) */
-    0x75u, 0x10u,                         //     REPORT_SIZE (16) */
-    /* 129 */
-
-    0x27u, 0xFFu, 0x0Fu, 0x00u, 0x00u,    //     LOGICAL_MAXIMUM  X (default = 4095) */
-    0x47u, 0x00u, 0x00u, 0x00u, 0x00u,    //     PHYSICAL_MAXIMUM X (default = 0) */
-    0x09u, 0x30u,                         //     USAGE (X) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     16 Bits = X Position */
-    /* 143 */
-
-    0x27u, 0xFFu, 0x0Fu, 0x00u, 0x00u,    //     LOGICAL_MAXIMUM  Y (default = 4095) */
-    0x47u, 0x00u, 0x00u, 0x00u, 0x00u,    //     PHYSICAL_MAXIMUM Y (default = 0) */
-    0x09u, 0x31u,                         //     USAGE (Y) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     16 Bits = Y Position */
-    /* 157 */
-
-    /* Touch Pressure - used to convey z values */
-    0x05u, 0x0Du,                         //     USAGE_PAGE (Digitizer) */
-    0x09u, 0x30u,                         //     USAGE (Pressure) */
-    0x26u, 0x00u, 0x04u,                  //     LOGICAL_MAXIMUM (1024) */
-    0x45u, 0x00u,                         //     PHYSICAL_MAXIMUM (0) */
-    0x95u, 0x01u,                         //     REPORT_COUNT (1) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     16 Bits */
-
-    0xC0u,                                // END_COLLECTION (Logical / 2nd contact) */
+    DIGITIZER_CONTACT_REPORT
     /* 172 */
 
     // Third Contact */
-    0x05u, 0x0Du,                         // USAGE_PAGE (Digitizers) */
-    0x09u, 0x22u,                         // USAGE (Finger) */
-    0xA1u, 0x02u,                         //     COLLECTION (Logical) */
-    0x25u, 0x01u,                         //     LOGICAL_MAXIMUM (1) */
-    0x95u, 0x01u,                         //     REPORT_COUNT (1) */
-    0x75u, 0x01u,                         //     REPORT_SIZE (1) */
-
-    0x09u, 0x42u,                         //     USAGE (Tip Switch) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     1 Bit = TipSwitch status (Touch / No Touch) */
-
-    0x09u, 0x32u,                         //     USAGE (In Range) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     1 Bits = In range */
-
-    0x09u, 0x47u,                         //     USAGE (Confidence) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     1 Bit = Confidence */
-
-    0x25u, 0x1Fu,                         //     LOGICAL_MAXIMUM (31) */
-    0x75u, 0x05u,                         //     REPORT SIZE (5) */
-    0x09u, 0x51u,                         //     USAGE (CONTACT ID) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     5 Bits = Contact ID */
-
-    0x05u, 0x01u,                         //     USAGE_PAGE (Generic Desktop) */
-    0x75u, 0x10u,                         //     REPORT_SIZE (16) */
-
-    0x27u, 0xFFu, 0x0Fu, 0x00u, 0x00u,    //     LOGICAL_MAXIMUM  X (default = 4095) */ /* 163(low), 164(high) */
-    0x47u, 0x00u, 0x00u, 0x00u, 0x00u,    //     PHYSICAL_MAXIMUM X (default = 0) */    /* 166(low), 167(high) */
-    0x09u, 0x30u,                         //     USAGE (X) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     16 Bits = X Position */
-
-    0x27u, 0xFFu, 0x0Fu, 0x00u, 0x00u,    //     LOGICAL_MAXIMUM  Y (default = 4095) */ /* 173(low), 174(high) */
-    0x47u, 0x00u, 0x00u, 0x00u, 0x00u,    //     PHYSICAL_MAXIMUM Y (default = 0) */    /* 176(low), 177(high) */
-    0x09u, 0x31u,                         //     USAGE (Y) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     16 Bits = Y Position */
-
-    /* Touch Pressure - used to convey z values */
-    0x05u, 0x0Du,                         //     USAGE_PAGE (Digitizer) */
-    0x09u, 0x30u,                         //     USAGE (Pressure) */
-    0x26u, 0x00u, 0x04u,                  //     LOGICAL_MAXIMUM (1024) */
-    0x45u, 0x00u,                         //     PHYSICAL_MAXIMUM (0) */
-    0x95u, 0x01u,                         //     REPORT_COUNT (1) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     16 Bits */
-
-    0xC0u,                                // END_COLLECTION (Logical / 3rd contact) */
+    DIGITIZER_CONTACT_REPORT
 
     // Fourth Contact */
-    0x05u, 0x0Du,                         // USAGE_PAGE (Digitizers) */
-    0x09u, 0x22u,                         // USAGE (Finger) */
-    0xA1u, 0x02u,                         //     COLLECTION (Logical) */
-    0x25u, 0x01u,                         //     LOGICAL_MAXIMUM (1) */
-    0x95u, 0x01u,                         //     REPORT_COUNT (1) */
-    0x75u, 0x01u,                         //     REPORT_SIZE (1) */
-
-    0x09u, 0x42u,                         //     USAGE (Tip Switch) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     1 Bit = TipSwitch status (Touch / No Touch) */
-
-    0x09u, 0x32u,                         //     USAGE (In Range) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     1 Bits = In range */
-
-    0x09u, 0x47u,                         //     USAGE (Confidence) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     1 Bit = Confidence */
-
-    0x25u, 0x1Fu,                         //     LOGICAL_MAXIMUM (31) */
-    0x75u, 0x05u,                         //     REPORT SIZE (5) */
-    0x09u, 0x51u,                         //     USAGE (CONTACT ID) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     5 Bits = Contact ID */
-
-    0x05u, 0x01u,                         //     USAGE_PAGE (Generic Desktop) */
-    0x75u, 0x10u,                         //     REPORT_SIZE (16) */
-
-    0x27u, 0xFFu, 0x0Fu, 0x00u, 0x00u,    //     LOGICAL_MAXIMUM  X (default = 4095) */
-    0x47u, 0x00u, 0x00u, 0x00u, 0x00u,    //     PHYSICAL_MAXIMUM X (default = 0) */
-    0x09u, 0x30u,                         //     USAGE (X) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     16 Bits = X Position */
-
-    0x27u, 0xFFu, 0x0Fu, 0x00u, 0x00u,    //     LOGICAL_MAXIMUM  Y (default = 4095) */
-    0x47u, 0x00u, 0x00u, 0x00u, 0x00u,    //     PHYSICAL_MAXIMUM Y (default = 0) */
-    0x09u, 0x31u,                         //     USAGE (Y) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     16 Bits = Y Position */
-
-    /* Touch Pressure - used to convey z values */
-    0x05u, 0x0Du,                         //     USAGE_PAGE (Digitizer) */
-    0x09u, 0x30u,                         //     USAGE (Pressure) */
-    0x26u, 0x00u, 0x04u,                  //     LOGICAL_MAXIMUM (1024) */
-    0x45u, 0x00u,                         //     PHYSICAL_MAXIMUM (0) */
-    0x95u, 0x01u,                         //     REPORT_COUNT (1) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     16 Bits */
-
-    0xC0u,                                // END_COLLECTION (Logical / 4th contact) */
+    DIGITIZER_CONTACT_REPORT
 
     // Fifth Contact */
-    0x05u, 0x0Du,                         // USAGE_PAGE (Digitizers) */
-    0x09u, 0x22u,                         // USAGE (Finger) */
-    0xA1u, 0x02u,                         //     COLLECTION (Logical) */
-    0x25u, 0x01u,                         //     LOGICAL_MAXIMUM (1) */
-    0x95u, 0x01u,                         //     REPORT_COUNT (1) */
-    0x75u, 0x01u,                         //     REPORT_SIZE (1) */
-
-    0x09u, 0x42u,                         //     USAGE (Tip Switch) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     1 Bit = TipSwitch status (Touch / No Touch) */
-
-    0x09u, 0x32u,                         //     USAGE (In Range) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     1 Bits = In range */
-
-    0x09u, 0x47u,                         //     USAGE (Confidence) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     1 Bit = Confidence */
-
-    0x25u, 0x1Fu,                         //     LOGICAL_MAXIMUM (31) */
-    0x75u, 0x05u,                         //     REPORT SIZE (5) */
-    0x09u, 0x51u,                         //     USAGE (CONTACT ID) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     5 Bits = Contact ID */
-
-    0x05u, 0x01u,                         //     USAGE_PAGE (Generic Desktop) */
-    0x75u, 0x10u,                         //     REPORT_SIZE (16) */
-
-    0x27u, 0xFFu, 0x0Fu, 0x00u, 0x00u,     //     LOGICAL_MAXIMUM  X (default = 4095) */
-    0x47u, 0x00u, 0x00u, 0x00u, 0x00u,     //     PHYSICAL_MAXIMUM X (default = 0) */
-    0x09u, 0x30u,                         //     USAGE (X) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     16 Bits = X Position */
-
-    0x27u, 0xFFu, 0x0Fu, 0x00u, 0x00u,    //     LOGICAL_MAXIMUM  Y (default = 4095) */
-    0x47u, 0x00u, 0x00u, 0x00u, 0x00u,    //     PHYSICAL_MAXIMUM Y (default = 0) */
-    0x09u, 0x31u,                         //     USAGE (Y) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     16 Bits = Y Position */
-
-    /* Touch Pressure - used to convey z values */
-    0x05u, 0x0Du,                         //     USAGE_PAGE (Digitizer) */
-    0x09u, 0x30u,                         //     USAGE (Pressure) */
-    0x26u, 0x00u, 0x04u,                  //     LOGICAL_MAXIMUM (1024) */
-    0x45u, 0x00u,                         //     PHYSICAL_MAXIMUM (0) */
-    0x95u, 0x01u,                         //     REPORT_COUNT (1) */
-    0x81u, 0x02u,                         //     INPUT (Data,Var,Abs)     16 Bits */
-
-    0xC0u,                                // END_COLLECTION (Logical / 5th contact) */
+    DIGITIZER_CONTACT_REPORT
 
     // Timestamp */
     0x05, 0x0d,                         //    USAGE_PAGE (Digitizers)
@@ -374,6 +215,38 @@ __ALIGN_BEGIN static uint8_t GENERIC_HID_ReportDesc_FS[USBD_GENERIC_HID_REPORT_D
     0xB1u, 0x02u,                         /*   Feature (Data, Var, Abs) */
 
     0xC0u,                               // END_COLLECTION */
+
+    
+    0x05, 0x01,         // Usage Page (Generic Desktop),
+    0x09, 0x02,         // Usage (Mouse),
+    0xA1, 0x01,         // Collection (Application),
+    0x85u, REPORT_ID_MOUSE,      /*   Report ID (Feature) */
+    0x09, 0x01,         //   Usage (Pointer),
+    0xA1, 0x00,         //   Collection (Physical),
+    0x05, 0x09,         //     Usage Page (Buttons),
+    0x19, 0x01,         //     Usage Minimum (01),
+    0x29, 0x03,         //     Usage Maximum (03),
+    0x15, 0x00,         //     Logical Minimum (0),
+    0x25, 0x01,         //     Logical Maximum (1),
+    0x75, 0x01,         //     Report Size (1),
+    0x95, 0x03,         //     Report Count (3),
+    0x81, 0x02,         //     Input (Data, Variable, Absolute)
+    0x75, 0x05,         //     Report Size (5),
+    0x95, 0x01,         //     Report Count (1),
+    0x81, 0x01,         //     Input (Constant),
+    0x05, 0x01,         //     Usage Page (Generic Desktop),
+    0x16, 0x00, 0x00,   //     Logical Minimum (0),     /* 35(low byte) 36(high byte) */
+    0x26, 0xFF, 0x0F,   //     Logical Maximum (4095),  /* 41(low byte) 42(high byte) */
+    0x36, 0x00, 0x00,   //     Physical Minimum (0),    /* 38(low byte) 39(high byte) */
+    0x46, 0xFF, 0x0F,   //     Physical Maximum (4095), /* 44(low byte) 45(high byte) */
+    0x09, 0x30,         //     Usage (X),
+    0x09, 0x31,         //     Usage (Y),
+    0x75, 0x10,         //     Report Size (16),
+    0x95, 0x02,         //     Report Count (2),
+    0x81, 0x02,         //     Input (Data, Variable, Absolute)
+    0xC0,               //   End Collection,
+    0xC0,               // End Collection
+#endif
 };
 
 /*============ Local Function Prototypes ============*/

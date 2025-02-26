@@ -62,14 +62,21 @@ extern PCD_HandleTypeDef hpcd_USB_FS;
   * @{
   */
 
-// XXX: USB configuration parameters
-/*---------- -----------*/
-#define USBD_MAX_NUM_INTERFACES                 (0x03)
-#define USBD_GENERIC_AND_PRESS_INTERFACES_ONLY  (0x02)
-/*---------- -----------*/
-#define USBD_MAX_NUM_CONFIGURATION              (1)
-/*---------- -----------*/
-#define USBD_GENERIC_HID_REPORT_IN_SIZE         (64)// limited by USB 2.0 spec, can't be any bigger!
+#define PRESS_INTERFACE_ENABLED 1
+#define MOUSE_INTERFACE_ENABLED 1
+#define DIGITIZER_HID_ENABLED 1
+#define MOUSE_HID_ENABLED 1
+
+#define COMBINED_REPORT 1
+ // XXX: USB configuration parameters
+ /*---------- -----------*/
+#define USBD_MAX_NUM_INTERFACES (1 + PRESS_INTERFACE_ENABLED + MOUSE_INTERFACE_ENABLED)
+ /*---------- -----------*/
+#define USBD_GENERIC_AND_PRESS_INTERFACES_ONLY (0x02)
+ /*---------- -----------*/
+#define USBD_MAX_NUM_CONFIGURATION (1)
+ /*---------- -----------*/
+#define USBD_GENERIC_HID_REPORT_IN_SIZE         (64) // limited by USB 2.0 spec, can't be any bigger!
 #define USBD_GENERIC_HID_REPORT_OUT_SIZE        (64)
 #define USBD_GENERIC_HID_FEATURE_SIZE           (4)
 /*---------- -----------*/
@@ -100,7 +107,13 @@ extern PCD_HandleTypeDef hpcd_USB_FS;
 #define USBD_MOUSE_PAR_DIGITIZER_DESC_SIZE      (464)//(474)
 #define USBD_MOUSE_PAR_DIGITIZER_DESC_SIZE_LO   (LOBYTE(USBD_MOUSE_PAR_DIGITIZER_DESC_SIZE))
 #define USBD_MOUSE_PAR_DIGITIZER_DESC_SIZE_HI   (HIBYTE(USBD_MOUSE_PAR_DIGITIZER_DESC_SIZE))
-#define USBD_GENERIC_HID_REPORT_DESC_SIZE       (49 + USBD_MOUSE_PAR_DIGITIZER_DESC_SIZE)
+
+#if COMBINED_REPORT
+#define USBD_GENERIC_HID_REPORT_DESC_SIZE       (49 + USBD_MOUSE_PAR_DIGITIZER_DESC_SIZE + USBD_MOUSE_ABS_REPORT_DESC_SIZE + 2)
+#else
+#define USBD_GENERIC_HID_REPORT_DESC_SIZE       (47)
+#endif
+
  /*---------- -----------*/
 /****************************************/
 /* #define for FS and HS identification */

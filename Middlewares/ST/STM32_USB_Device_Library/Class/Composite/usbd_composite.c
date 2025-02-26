@@ -410,19 +410,32 @@ uint8_t Send_USB_Report(uint8_t interface,USBD_HandleTypeDef  *pdev, uint8_t *re
         {
             case GENERIC:
             {
+#if COMBINED_REPORT
                 memmove(&report[1], &report[0], len);
                 report[0] = REPORT_ID_CONTROL;
+#endif
                 status = SendReport_ControlEndpoint(pdev, report, len);
                 break;
             }
             case MOUSE:
             {
-                status = SendReport_ControlEndpoint(pdev, report, len);
+#if COMBINED_REPORT
+                // Add Mouse report ID
+                // memmove(&report[1], &report[0], len);
+                // report[0] = REPORT_ID_MOUSE;
+                status = SendReport_ControlEndpoint(pdev, report, len+1);
+#else
+                status = SendReport_MouseEndpoint(pdev, report, len);
+#endif
                 break;
             }
             case PRESS:
             {
+#if COMBINED_REPORT
+                status = SendReport_ControlEndpoint(pdev, report, len);
+#else
                 status = SendReport_PressEndpoint(pdev, report, len);
+#endif
                 break;
             }
         }

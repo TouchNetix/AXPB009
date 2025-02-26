@@ -239,32 +239,33 @@ void Store_BridgeMode_To_Flash(uint8_t BridgeMode_to_store)
 /* This reads the first option byte stored in flash user area */
 uint8_t GetDeviceModeFromFlash(void)
 {
-//    uint8_t BridgeMode_temp    = 0;
-//    uint8_t BridgeMode_Complement = 0;
-//
-//    BridgeMode_temp = READ_OPTBYTE0();
-//    BridgeMode_Complement = READ_OPTBYTE0_COMP();
-//
-//    uint8_t BridgeMode_temp_comp = ~BridgeMode_temp;
-//
-//    if(BridgeMode_temp_comp == BridgeMode_Complement)
-//    {
-//        // no flash errors
-//        // make sure the bridge is in a known mode, if not then put it into basic mode
-//        if((BridgeMode_temp != MODE_TBP_BASIC) && (BridgeMode_temp != MODE_ABSOLUTE_MOUSE) && (BridgeMode_temp != MODE_PARALLEL_DIGITIZER))
-//        {
-//            HAL_DeInit();
-//            Store_BridgeMode_To_Flash(MODE_PARALLEL_DIGITIZER);
-//        }
-//    }
-//    else
-//    {
-//        // discrepancy detected, write the default mode back to flash
-//        HAL_DeInit();
-//        Store_BridgeMode_To_Flash(MODE_PARALLEL_DIGITIZER);
-//    }
+   uint8_t BridgeMode_temp    = 0;
+   uint8_t BridgeMode_Complement = 0;
 
-    return MODE_PARALLEL_DIGITIZER;
+   BridgeMode_temp = READ_OPTBYTE0();
+   BridgeMode_Complement = READ_OPTBYTE0_COMP();
+
+   uint8_t BridgeMode_temp_comp = ~BridgeMode_temp;
+
+   if(BridgeMode_temp_comp == BridgeMode_Complement)
+   {
+       // no flash errors
+       // make sure the bridge is in a known mode, if not then put it into basic mode
+       if((BridgeMode_temp != MODE_TBP_BASIC) && (BridgeMode_temp != MODE_ABSOLUTE_MOUSE) && (BridgeMode_temp != MODE_PARALLEL_DIGITIZER))
+       {
+           HAL_DeInit();
+           Store_BridgeMode_To_Flash(MODE_PARALLEL_DIGITIZER);
+       }
+   }
+   else
+   {
+       // discrepancy detected, write the default mode back to flash
+       HAL_DeInit();
+       Store_BridgeMode_To_Flash(MODE_PARALLEL_DIGITIZER);
+   }
+
+    // return MODE_PARALLEL_DIGITIZER;
+    return BridgeMode_temp;
 }
 
 /*-----------------------------------------------------------*/

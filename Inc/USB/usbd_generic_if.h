@@ -34,6 +34,7 @@
 #define REPORT_ID_CONTROL           (0x01U)
 #define REPORT_ID_DIGITIZER         (0x02U)
 #define REPORT_ID_DIGI_MAX_COUNT    (0x03U)
+#define REPORT_ID_MOUSE             (0x04U)  
 
 /*============ Exported Types ============*/
 extern USBD_GENERIC_HID_ItfTypeDef USBD_GenericHID_fops_FS; /** GENERIC_HID Interface callback. */

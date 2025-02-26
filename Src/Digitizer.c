@@ -201,15 +201,19 @@ static void PrepareAbsMouseReport(void)
     TempX = DigitizerXCoord >> 4;
     TempY = DigitizerYCoord >> 4;
 
-    usb_hid_mouse_report_in[0] = (0xF8 | button_state);
+    uint16_t idx = 0;
+#if COMBINED_REPORT
+    usb_hid_mouse_report_in[idx++] = REPORT_ID_MOUSE;
+#endif
+    usb_hid_mouse_report_in[idx++] = (0xF8 | button_state);
 
     // send x coordinates
-    usb_hid_mouse_report_in[1] = TempX & 0xFF;
-    usb_hid_mouse_report_in[2] = TempX >> 8;
+    usb_hid_mouse_report_in[idx++] = TempX & 0xFF;
+    usb_hid_mouse_report_in[idx++] = TempX >> 8;
 
     // then send y coordinates
-    usb_hid_mouse_report_in[3] = TempY & 0xFF;
-    usb_hid_mouse_report_in[4] = TempY >> 8;
+    usb_hid_mouse_report_in[idx++] = TempY & 0xFF;
+    usb_hid_mouse_report_in[idx++] = TempY >> 8;
 
     boMouseReportToSend = 1;
 }
