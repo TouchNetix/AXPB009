@@ -190,9 +190,7 @@ void SystemInit(void)
         SysMemBootJump = (void (*)(void)) (*((uint32_t *) 0x1fffC404)); // Point the PC to the System Memory reset vector (+4)
         SysMemBootJump();
     }
-#endif
-
-#if defined(STM32F070xB) || defined(STM32F072xB)
+#elif defined(STM32F070xB) || defined(STM32F072xB)
     if( *((unsigned long *)0x20003FF0) == 0xDEADBEEF )
     {
         *((unsigned long *)0x20003FF0) =  0xCAFEFEED; // Reset our magic trigger
@@ -202,6 +200,8 @@ void SystemInit(void)
         SysMemBootJump = (void (*)(void)) (*((uint32_t *) 0x1fffC804)); // Point the PC to the System Memory reset vector (+4)
         SysMemBootJump();
     }
+#else
+#error "Invalid or undefined target."
 #endif
 
   /* Reset the RCC clock configuration to the default reset state ------------*/

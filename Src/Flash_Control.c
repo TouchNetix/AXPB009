@@ -371,6 +371,9 @@ void StartBootloader(void)
      * 6k SRAM in address range: 0x2000 0000 - 0x2000 17FF
      */
     *((unsigned long *)0x200017F0) = 0xDEADBEEF;
+
+    // Reset the processor --> this call makes sure the option bytes are reloaded correctly at reset
+    HAL_FLASH_OB_Launch();
 #endif
 
 #if defined(STM32F070xB) || defined(STM32F072xB)
@@ -378,10 +381,9 @@ void StartBootloader(void)
      * 16k SRAM in address range: 0x2000 0000 - 0x2000 3FFF
      */
     *((unsigned long *)0x20003FF0) = 0xDEADBEEF;
-#endif
 
-    // Reset the processor --> this call makes sure the option bytes are reloaded correctly at reset
-    HAL_FLASH_OB_Launch();
+    NVIC_SystemReset();
+#endif
 
     // We then do a check in SystemInit() at startup to see if this 'magic number' has been set
 }
