@@ -45,52 +45,41 @@
 #define EP0_EP_IDX                            (0x00)
 #define GENERIC_EPOUT_IDX                     (0x01)
 #define GENERIC_EPIN_IDX                      (0x02)
-#define PRESS_EPOUT_IDX                       (0x03)
-#define PRESS_EPIN_IDX                        (0x04)
-#define MOUSE_EPIN_IDX                        (0x05)
+#define MOUSE_EPIN_IDX                        (0x03)
 
+#define TOTAL_NUM_ENDPOINTS                   (5U)
+#define BUFFER_DESCRIPTOR_TABLE_ENTRY_SIZE    (8U)
 
 #define EP_IN_DIRECTION                       (0x80)
 
+#define EP0_EPOUT_ADDR                        (TOTAL_NUM_ENDPOINTS * BUFFER_DESCRIPTOR_TABLE_ENTRY_SIZE)
+#define EP0_EPIN_ADDR                         (EP0_EPOUT_ADDR + 0x40)
+#define GENERIC_HID_EPOUT_ADDR                (EP0_EPIN_ADDR + 0x40)
+#define GENERIC_HID_EPIN_ADDR                 (GENERIC_HID_EPOUT_ADDR + 0x40)
+#define MOUSE_HID_EPIN_ADDR                   (GENERIC_HID_EPIN_ADDR + 0x40)
 
-#define EP0_EPIN                              (EP0_EP_IDX | EP_IN_DIRECTION)
-#define EP0_EPIN_ADDR                         (0x78)
 #define EP0_EPOUT                             (EP0_EP_IDX)
-#define EP0_EPOUT_ADDR                        (0x38)
-
-#define GENERIC_HID_EPIN                      (GENERIC_EPIN_IDX | EP_IN_DIRECTION)
-#define GENERIC_HID_EPIN_ADDR                 (0xF8)
-#define GENERIC_HID_EPIN_SIZE                 (0x40) // 64 bytes
+#define EP0_EPIN                              (EP0_EP_IDX | EP_IN_DIRECTION)
 
 #define GENERIC_HID_EPOUT                     (GENERIC_EPOUT_IDX)
-#define GENERIC_HID_EPOUT_ADDR                (0xB8)
 #define GENERIC_HID_EPOUT_SIZE                (0x40) // 64 bytes
-
-#define PRESS_HID_EPIN                        (PRESS_EPIN_IDX | EP_IN_DIRECTION)
-#define PRESS_HID_EPIN_ADDR                   (0x178)
-#define PRESS_HID_EPIN_SIZE                   (0x40) // 64 bytes
-
-#define PRESS_HID_EPOUT                       (PRESS_EPOUT_IDX)
-#define PRESS_HID_EPOUT_ADDR                  (0x138)
-#define PRESS_HID_EPOUT_SIZE                  (0x40) // 64 bytes
+#define GENERIC_HID_EPIN                      (GENERIC_EPIN_IDX | EP_IN_DIRECTION)
+#define GENERIC_HID_EPIN_SIZE                 (0x40) // 64 bytes
 
 #define MOUSE_HID_EPIN                        (MOUSE_EPIN_IDX | EP_IN_DIRECTION)
-#define MOUSE_HID_EPIN_ADDR                   (0x1B8)
 #define MOUSE_HID_EPIN_SIZE                   (0x36) // 54 bytes
 
-#define USB_COMPOSITE_HID_CONFIG_DESC_SIZE              (98)
-#define USB_COMPOSITE_HID_CONFIG_NO_DIGITIZER_DESC_SIZE (73)
+#define USB_COMPOSITE_HID_CONFIG_DESC_SIZE              (66)
+#define USB_COMPOSITE_HID_CONFIG_NO_DIGITIZER_DESC_SIZE (41)
 #define USB_COMPOSITE_HID_DESC_SIZE                     (9)
 #define COMPOSITE_HID_DESCRIPTOR_TYPE                   (0x21)
 
 // usb interface numbers used during enumeration - allows us to understand which interface is being targeted
 #define GENERIC_INTERFACE_NUM    (0)
-#define PRESS_INTERFACE_NUM      (1)
 #define MOUSE_INTERFACE_NUM      (2)
 
 // used to determine which interface we're wanting to send a report from (used in function call)
 #define GENERIC     (0)
-#define PRESS       (1)
 #define MOUSE       (2)
 
 // used to define some other parameters of the usb config

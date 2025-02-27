@@ -378,11 +378,9 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
   HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, EP0_EPIN,  PCD_SNG_BUF, EP0_EPIN_ADDR); //0x58
   /* USER CODE END EndPoint_Configuration */
   /* USER CODE BEGIN EndPoint_Configuration_CUSTOM_HID */
-  HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, GENERIC_HID_EPOUT, PCD_SNG_BUF, GENERIC_HID_EPOUT_ADDR); //0x98);
-  HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, GENERIC_HID_EPIN , PCD_SNG_BUF, GENERIC_HID_EPIN_ADDR); //0xD8);
-  HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, PRESS_HID_EPOUT,   PCD_SNG_BUF, PRESS_HID_EPOUT_ADDR); //0x118);
-  HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, PRESS_HID_EPIN ,   PCD_SNG_BUF, PRESS_HID_EPIN_ADDR); //0x158);
-  HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, MOUSE_HID_EPIN ,   PCD_SNG_BUF, MOUSE_HID_EPIN_ADDR); //0x198);
+  HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, GENERIC_HID_EPOUT, PCD_SNG_BUF, GENERIC_HID_EPOUT_ADDR);
+  HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, GENERIC_HID_EPIN , PCD_SNG_BUF, GENERIC_HID_EPIN_ADDR);
+  HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, MOUSE_HID_EPIN ,   PCD_SNG_BUF, MOUSE_HID_EPIN_ADDR);
   /* USER CODE END EndPoint_Configuration_CUSTOM_HID */
 
   return USBD_OK;
@@ -640,18 +638,6 @@ void *USBD_static_malloc_generic(uint32_t size)
 {
     static uint32_t mem_generic[MAX_BYTES_STATIC_ALLOC_SIZE/4]; // divided by 4 to convert bytes into words - mem is declared as a uint32_t, lies on 32-bit boundary
     return mem_generic;
-}
-
-/**
-  * @brief  Static single allocation.
-  * @param  size: Size of allocated memory
-  * @retval None
-  */
-// CUSTOMISED - static_malloc function
-void *USBD_static_malloc_press(uint32_t size)
-{
-    static uint32_t mem_press[MAX_BYTES_STATIC_ALLOC_SIZE/4]; // divided by 4 to convert bytes into words - mem is declared as a uint32_t, lies on 32-bit boundary
-    return mem_press;
 }
 
 /**

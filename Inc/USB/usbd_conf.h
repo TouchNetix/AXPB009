@@ -64,8 +64,7 @@ extern PCD_HandleTypeDef hpcd_USB_FS;
 
 // XXX: USB configuration parameters
 /*---------- -----------*/
-#define USBD_MAX_NUM_INTERFACES                 (0x03)
-#define USBD_GENERIC_AND_PRESS_INTERFACES_ONLY  (0x02)
+#define USBD_MAX_NUM_INTERFACES                 (0x02)
 /*---------- -----------*/
 #define USBD_MAX_NUM_CONFIGURATION              (1)
 /*---------- -----------*/
@@ -75,10 +74,6 @@ extern PCD_HandleTypeDef hpcd_USB_FS;
 /*---------- -----------*/
 #define USBD_MOUSE_HID_REPORT_IN_SIZE           (64)
 #define USBD_MOUSE_HID_REPORT_OUT_SIZE          (64)
- /*---------- -----------*/
-#define USBD_PRESS_HID_REPORT_IN_SIZE           (64)
-#define USBD_PRESS_HID_REPORT_OUT_SIZE          (64)
-#define USBD_PRESS_HID_FEATURE_SIZE             (4)
 /*---------- -----------*/
 #define USBD_MAX_STR_DESC_SIZ                   (512)
 /*---------- -----------*/
@@ -91,10 +86,8 @@ extern PCD_HandleTypeDef hpcd_USB_FS;
 /*---------- -----------*/
 #define USBD_GENERIC_HID_OUTREPORT_BUF_SIZE     (64)
 #define USBD_MOUSE_HID_OUTREPORT_BUF_SIZE       (64)
-#define USBD_PRESS_HID_OUTREPORT_BUF_SIZE       (64)
 /*---------- -----------*/
 #define USBD_GENERIC_HID_REPORT_DESC_SIZE       (47)
-#define USBD_PRESS_HID_REPORT_DESC_SIZE         (53)
  /*---------- -----------*/
 #define USBD_MOUSE_ABS_REPORT_DESC_SIZE         (58)
 #define USBD_MOUSE_ABS_REPORT_DESC_SIZE_LO      (LOBYTE(USBD_MOUSE_ABS_REPORT_DESC_SIZE))
@@ -121,11 +114,10 @@ extern PCD_HandleTypeDef hpcd_USB_FS;
 
 /** Alias for memory allocation. */
 #define USBD_malloc_generic       (uint32_t *)USBD_static_malloc_generic
-#define USBD_malloc_press         (uint32_t *)USBD_static_malloc_press
 #define USBD_malloc_mouse         (uint32_t *)USBD_static_malloc_mouse
 
 // CUSTOMISED - static malloc size
-#define MAX_BYTES_STATIC_ALLOC_SIZE	84 /* HID Class structure size in BYTES - set to be the same size as USBD_GENERIC_HID_HandleTypeDef struct (same as USBD_MOUSE_HID_HandleTypeDef and USBD_PRESS_HID_HandleTypeDef) */
+#define MAX_BYTES_STATIC_ALLOC_SIZE	84 /* HID Class structure size in BYTES - set to be the same size as USBD_GENERIC_HID_HandleTypeDef struct (same as USBD_MOUSE_HID_HandleTypeDef) */
 
 /** Alias for memory release. */
 #define USBD_free           USBD_static_free
@@ -185,7 +177,6 @@ extern PCD_HandleTypeDef hpcd_USB_FS;
 
 /* Exported functions -------------------------------------------------------*/
 void *USBD_static_malloc_generic(uint32_t size);
-void *USBD_static_malloc_press(uint32_t size);
 void *USBD_static_malloc_mouse(uint32_t size);
 void USBD_static_free(void *p);
 /**

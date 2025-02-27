@@ -37,7 +37,6 @@
 
 /*============ Exported Variables ============*/
 extern  bool    boGenericTBPResponseWaiting;
-extern  bool    boPressTBPResponseWaiting;
 extern  uint8_t *pTBPCommandReport;
 
 /*============ Exported Functions ============*/

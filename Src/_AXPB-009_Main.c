@@ -37,15 +37,12 @@
 #include "usbd_generic.h"
 #include "usbd_mouse_if.h"
 #include "usbd_mouse.h"
-#include "usbd_press_if.h"
-#include "usbd_press.h"
 #include "stm32f0xx.h"
 #include "SPI_comms.h"
 #include "Comms.h"
 #include "Command_Processor.h"
 #include "Proxy_driver.h"
 #include "Digitizer.h"
-#include "Press_driver.h"
 #include "Usage_Builder.h"
 #include "Mode_Control.h"
 #include "Timers_and_LEDs.h"
@@ -55,7 +52,6 @@
 /*============ Defines ============*/
 #define CONTROL_ENDPOINT        (0)
 #define MOUSE_ENDPOINT          (1)
-#define PRESS_ENDPOINT          (2)
 #define USB_STARTUP_DELAY_MS    (200)
 
 #define FILLED_BUFFER   (0U)
@@ -102,13 +98,6 @@ int main(void)
             boGenericTBPResponseWaiting = 0;
         }
 
-
-        if((boPressTBPResponseWaiting == 1) && (USBD_PRESS_HID_GetState(&hUsbDeviceFS) == USB_HID_IDLE))
-        {
-            Send_USB_Report(PRESS, &hUsbDeviceFS, pTBPCommandReport, USBD_PRESS_HID_REPORT_IN_SIZE);
-            boPressTBPResponseWaiting = 0;
-        }
-
         /* send reports to host flat out! */
         // only performs a proxy cycle if proxy mode is enabled, a command hasn't been sent by the host AND the connected device has a report available
         if(((boProxyEnabled == 1) || (boInternalProxy == 1)) && (boCommandWaitingToDecode == 0) && (HAL_GPIO_ReadPin(GPIOA, nIRQ_Pin) == 0))
@@ -139,10 +128,6 @@ int main(void)
                         MouseDigitizer();
                     }
                 }
-
-                // press endpoint is always active so this is always executed
-                BuildPressReportFromPressAndTouch();
-
             }
         }
         else if(ProxyMP_TotalNumBytesRx != 0)   // if this variable is non-zero, it means a 3D read is happening so enter here
@@ -185,9 +170,7 @@ int main(void)
         }
 
         /* Linux won't accept/deal with a packet unless an application is run to handle it so the code will lock up if the endpoint checks are tied together
-         * (like they used to be)
-         * e.g. Press endpoint always sends packets and will be a hog until the host has received it, which Linux won't without an application running
-         * Instead, each endpoint needs an independent check that blocks a new packet from being sent if one is in process, but doesn't prevent other endpoints
+         * (like they used to be). Each endpoint needs an independent check that blocks a new packet from being sent if one is in process, but doesn't prevent other endpoints
          * from sending */
         if((boGenericReportToSend == 1) && (USBD_GENERIC_HID_GetState(&hUsbDeviceFS) == USB_HID_IDLE) && (usb_remote_wake_state == RESUMED))
         {
@@ -204,12 +187,6 @@ int main(void)
         {
             Send_USB_Report(MOUSE, &hUsbDeviceFS, usb_hid_mouse_report_in, byMouseReportLength);
             boMouseReportToSend = 0;
-        }
-
-        if((boPressReportToSend == 1) && (USBD_PRESS_HID_GetState(&hUsbDeviceFS) == USB_HID_IDLE) && (usb_remote_wake_state == RESUMED))
-        {
-            Send_USB_Report(PRESS, &hUsbDeviceFS, usb_hid_press_report_in, USBD_PRESS_HID_REPORT_IN_SIZE);
-            boPressReportToSend = 0;
         }
 
         // turns off the LEDs if a recent comms event has turned them on

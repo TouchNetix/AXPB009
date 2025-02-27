@@ -42,7 +42,6 @@
 #include "usbd_mouse.h"
 #include "Comms.h"
 #include "Proxy_driver.h"
-#include "Press_driver.h"
 #include "Usage_Builder.h"
 #include "Mode_Control.h"
 
@@ -143,7 +142,6 @@ bool Check_u41Report(void)
     if((u34_TCP_report[1] == U41_REPORT) && boCRCCheckOK)
     {
         status = true;
-        boDoPressEvent = true;
     }
     else
     {

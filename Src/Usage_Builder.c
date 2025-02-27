@@ -286,26 +286,27 @@ void configure_HID_PARAMETER_IDs(void)
     /* Read from aXiom */
     while(parameter_count < MAX_NUM_HID_PARAMETERS)
     {
+        uint16_t temp = (uint16_t)((aXiom_Rx_Buffer[0][2 + HID_PARAMETER_ID(parameter_count)] << 8) | aXiom_Rx_Buffer[0][1 + HID_PARAMETER_ID(parameter_count)]);
         // first byte contains the ID of the parameter
         switch(aXiom_Rx_Buffer[0][HID_PARAMETER_ID(parameter_count)])
         {
             case VID:
             {
-                UserVID = (uint16_t)((aXiom_Rx_Buffer[0][2 + HID_PARAMETER_ID(parameter_count)] << 8) | aXiom_Rx_Buffer[0][1 + HID_PARAMETER_ID(parameter_count)]);
+                UserVID = temp;//(uint16_t)((aXiom_Rx_Buffer[0][2 + HID_PARAMETER_ID(parameter_count)] << 8) | aXiom_Rx_Buffer[0][1 + HID_PARAMETER_ID(parameter_count)]);
                 boCustomVIDUsed = 1;
                 boCustomParameterSet = 1;
                 break;
             }
             case PID:
             {
-                UserPID = (uint16_t)((aXiom_Rx_Buffer[0][2 + HID_PARAMETER_ID(parameter_count)] << 8) | aXiom_Rx_Buffer[0][1 + HID_PARAMETER_ID(parameter_count)]);
+                UserPID = temp;//(uint16_t)((aXiom_Rx_Buffer[0][2 + HID_PARAMETER_ID(parameter_count)] << 8) | aXiom_Rx_Buffer[0][1 + HID_PARAMETER_ID(parameter_count)]);
                 boCustomPIDUsed = 1;
                 boCustomParameterSet = 1;
                 break;
             }
             case PHYS_X:
             {
-                PhysMaxX_Temp = (uint16_t)((aXiom_Rx_Buffer[0][2 + HID_PARAMETER_ID(parameter_count)] << 8) | aXiom_Rx_Buffer[0][1 + HID_PARAMETER_ID(parameter_count)]);
+                PhysMaxX_Temp = temp;//(uint16_t)((aXiom_Rx_Buffer[0][2 + HID_PARAMETER_ID(parameter_count)] << 8) | aXiom_Rx_Buffer[0][1 + HID_PARAMETER_ID(parameter_count)]);
                 PhysMaxX = PhysMaxX_Temp * 5;   // multiply the read value by 5 to produce the value requested by the user --> TH2 assumes this value increases in steps of 0.5mm, but we increase it in steps of 0.1mm
                 boPhysicalSensorSizeDefined_X = 1;
                 boCustomParameterSet = 1;
@@ -313,7 +314,7 @@ void configure_HID_PARAMETER_IDs(void)
             }
             case PHYS_Y:
             {
-                PhysMaxY_Temp = (uint16_t)((aXiom_Rx_Buffer[0][2 + HID_PARAMETER_ID(parameter_count)] << 8) | aXiom_Rx_Buffer[0][1 + HID_PARAMETER_ID(parameter_count)]);
+                PhysMaxY_Temp = temp;//(uint16_t)((aXiom_Rx_Buffer[0][2 + HID_PARAMETER_ID(parameter_count)] << 8) | aXiom_Rx_Buffer[0][1 + HID_PARAMETER_ID(parameter_count)]);
                 PhysMaxY = PhysMaxY_Temp * 5;   // multiply the read value by 5 to produce the value requested by the user --> TH2 assumes this value increases in steps of 0.5mm, but we increase it in steps of 0.1mm
                 boPhysicalSensorSizeDefined_Y = 1;
                 boCustomParameterSet = 1;
@@ -321,14 +322,14 @@ void configure_HID_PARAMETER_IDs(void)
             }
             case LOGMAX_X:
             {
-                LogMaxX = (uint16_t)((aXiom_Rx_Buffer[0][2 + HID_PARAMETER_ID(parameter_count)] << 8) | aXiom_Rx_Buffer[0][1 + HID_PARAMETER_ID(parameter_count)]);
+                LogMaxX = temp;//(uint16_t)((aXiom_Rx_Buffer[0][2 + HID_PARAMETER_ID(parameter_count)] << 8) | aXiom_Rx_Buffer[0][1 + HID_PARAMETER_ID(parameter_count)]);
                 boLogicalMaxDefined_X = 1;
                 boCustomParameterSet = 1;
                 break;
             }
             case LOGMAX_Y:
             {
-                LogMaxY = (uint16_t)((aXiom_Rx_Buffer[0][2 + HID_PARAMETER_ID(parameter_count)] << 8) | aXiom_Rx_Buffer[0][1 + HID_PARAMETER_ID(parameter_count)]);
+                LogMaxY = temp;//(uint16_t)((aXiom_Rx_Buffer[0][2 + HID_PARAMETER_ID(parameter_count)] << 8) | aXiom_Rx_Buffer[0][1 + HID_PARAMETER_ID(parameter_count)]);
                 boLogicalMaxDefined_Y = 1;
                 boCustomParameterSet = 1;
                 break;

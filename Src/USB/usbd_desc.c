@@ -339,11 +339,6 @@ uint8_t * USBD_FS_InterfaceStrDescriptor(USBD_SpeedTypeDef speed, uint16_t *leng
         }
     }
 
-    else if(interface_num == PRESS_INTERFACE_NUM)
-    {
-        USBD_GetString((uint8_t *)USBD_INTERFACE_PRESS_STRING_FS, USBD_StrDesc, length);
-    }
-
     return USBD_StrDesc;
 } // }
 

@@ -393,9 +393,6 @@ static void USBD_GetDescriptor(USBD_HandleTypeDef *pdev ,
       pbuf = pdev->pDesc->GetInterfaceStrDescriptor(pdev->dev_speed, &len, MOUSE_INTERFACE_NUM);
       break;
 
-    case USBD_IDX_INTERFACE_PRESS_STR:
-      pbuf = pdev->pDesc->GetInterfaceStrDescriptor(pdev->dev_speed, &len, PRESS_INTERFACE_NUM);
-      break;
       // }
 
       

@@ -74,7 +74,6 @@
 // CUSTOMISED {
 #define  USBD_IDX_INTERFACE_GENERIC_STR             (0x05)
 #define  USBD_IDX_INTERFACE_MOUSE_STR               (0x06)
-#define  USBD_IDX_INTERFACE_PRESS_STR               (0x07)
 // }
 
 #define  USB_REQ_TYPE_STANDARD                      (0x00)
@@ -119,7 +118,6 @@
 
 #define USB_HS_MAX_PACKET_SIZE                      (512)
 #define USB_FS_MAX_PACKET_SIZE                      (64)
-#define USB_PRESS_OUT_PACKET_SIZE                   (64)
 #define USB_MAX_EP0_SIZE                            (64)
 
 /*  Device Status */
@@ -239,9 +237,6 @@ typedef struct  _USBD_GENERIC_HID_Itf               USBD_GENERIC_HID_ItfTypeDef;
 struct          _USBD_MOUSE_HID_HandleTypeDef;
 typedef struct  _USBD_MOUSE_HID_HandleTypeDef       USBD_MOUSE_HID_HandleTypeDef;
 typedef struct  _USBD_MOUSE_HID_Itf                 USBD_MOUSE_HID_ItfTypeDef;
-struct          _USBD_PRESS_HID_HandleTypeDef;
-typedef struct  _USBD_PRESS_HID_HandleTypeDef       USBD_PRESS_HID_HandleTypeDef;
-typedef struct  _USBD_PRESS_HID_Itf                 USBD_PRESS_HID_ItfTypeDef;
 
 /* USB Device handle structure */
 typedef struct _USBD_HandleTypeDef
@@ -271,8 +266,6 @@ typedef struct _USBD_HandleTypeDef
   USBD_GENERIC_HID_ItfTypeDef       *pClassSpecificInterfaceGENERIC;
   USBD_MOUSE_HID_HandleTypeDef      *pClassDataMOUSE;
   USBD_MOUSE_HID_ItfTypeDef         *pClassSpecificInterfaceMOUSE;
-  USBD_PRESS_HID_HandleTypeDef      *pClassDataPRESS;
-  USBD_PRESS_HID_ItfTypeDef         *pClassSpecificInterfacePRESS;
 
   void                    *pData;
 } USBD_HandleTypeDef;

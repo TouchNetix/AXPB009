@@ -27,7 +27,6 @@
 #include "usbd_composite.h"
 #include "usbd_generic_if.h"
 #include "usbd_mouse_if.h"
-#include "usbd_press_if.h"
 #include "Flash_Control.h"
 #include "Digitizer.h"
 #include "Usage_Builder.h"
@@ -72,6 +71,7 @@ void MX_USB_DEVICE_Init(void)
     ConfigurePID(BridgeMode);
     GetMouseDescriptorLength(BridgeMode);
     ConfigureCfgDescriptor(BridgeMode);
+
     if(u35_addr != 0)   // set various parameters (like VID + PID) if defined by user in aXiom firmware
     {
         configure_HID_PARAMETER_IDs();
@@ -82,30 +82,29 @@ void MX_USB_DEVICE_Init(void)
     /* Init Device Library, add supported class and start the library. */
     if (USBD_Init(&hUsbDeviceFS, &FS_Desc, DEVICE_FS) != USBD_OK)
     {
-    Error_Handler();
+        Error_Handler();
     }
+
     if (USBD_RegisterClass(&hUsbDeviceFS, &USBD_COMPOSITE_HID) != USBD_OK)
     {
-    Error_Handler();
+        Error_Handler();
     }
+
     if (USBD_GENERIC_HID_RegisterInterface(&hUsbDeviceFS, &USBD_GenericHID_fops_FS) != USBD_OK)
     {
-    Error_Handler();
+        Error_Handler();
     }
-    if (USBD_PRESS_HID_RegisterInterface(&hUsbDeviceFS, &USBD_PressHID_fops_FS) != USBD_OK)
-    {
-    Error_Handler();
-    }
+
     if (USBD_MOUSE_HID_RegisterInterface(&hUsbDeviceFS, &USBD_MouseHID_fops_FS) != USBD_OK)
     {
-    Error_Handler();
+        Error_Handler();
     }
 
     MatchReportDescriptorToMode(&hUsbDeviceFS, BridgeMode);  // TH2 tells bridge which mode it wants the mouse interface in before reset --> stored in flash so bridge knows mode required at start-up
 
     if (USBD_Start(&hUsbDeviceFS) != USBD_OK)
     {
-    Error_Handler();
+        Error_Handler();
     }
 
     /* USER CODE BEGIN USB_DEVICE_Init_PostTreatment */

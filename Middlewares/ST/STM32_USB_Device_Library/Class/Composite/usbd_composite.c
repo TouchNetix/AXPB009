@@ -53,10 +53,8 @@
 
 #include "usbd_mouse.h"
 #include "usbd_generic.h"
-#include "usbd_press.h"
 #include "usbd_mouse_if.h"
 #include "usbd_generic_if.h"
-#include "usbd_press_if.h"
 #include "Mode_Control.h"
 #include "Digitizer.h"
 #include "Timers_and_LEDs.h"
@@ -168,47 +166,6 @@ __ALIGN_BEGIN uint8_t USBD_COMPOSITE_HID_CfgDesc[USB_COMPOSITE_HID_CONFIG_DESC_S
         0x01,                                                           /* bInterval: Polling interval in ms */
         /* 41 bytes */
 
-//============================ PRESS
-
-        /*********************  Press HID interface *********************/
-        0x09,                           /* bLength: Interface descriptor size */
-        0x04,                           /* bDescriptorType: Interface */
-        PRESS_INTERFACE_NUM,            /* bInterfaceNumber: no. interface */
-        0x00,                           /* bAlternateSetting */
-        0x02,                           /* bNumEndPoints */
-        0x03,                           /* bInterfaceClass: HID */
-        0x00,                           /* bInterfaceSubClass */
-        0x00,                           /* bInterfaceProtocol */
-        USBD_IDX_INTERFACE_PRESS_STR,   /* iInterface: Index to string that describes the interface */
-        /* 50 bytes */
-
-        /********************  Press HID Descriptor ********************/
-        0x09,                                   /* bLength: PRESS_HID Descriptor size*/
-        COMPOSITE_HID_DESCRIPTOR_TYPE,          /* bDescriptorType: PRESS_HID*/
-        0x11, 0x01,                             /* bcdUSB: USB Spec release number*/
-        0x00,                                   /* bCountryCode: Hardware target country*/
-        0x01,                                   /* bNumDescriptors: Number of PRESS_HID class descriptors to follow*/
-        0x22,                                   /* bDescriptorType*/
-        USBD_PRESS_HID_REPORT_DESC_SIZE, 0x00,  /* wItemLength: Total length of Report descriptor*/
-        /* 59 bytes */
-
-        /*********************  Press HID endpoints *********************/
-        0x07,                                                                   /* bLength: Endpoint descriptor size */
-        0x05,                                                                   /* bDescriptorType: Endpoint */
-        PRESS_HID_EPIN,                                                         /* bEndpointAddress: Endpoint number and direction (address 1, IN) */
-        0x03,                                                                   /* bmAttributes: Interrupt */
-        LOBYTE(USB_FS_MAX_PACKET_SIZE), HIBYTE(USB_FS_MAX_PACKET_SIZE),         /* wMaxPacketSize: Max. no. data bytes the endpoint can transfer in a transaction */
-        0x01,                                                                   /* bInterval: Polling interval in ms */
-        /* 66 bytes */
-
-        0x07,                                                                   /* bLength: Endpoint descriptor size */
-        0x05,                                                                   /* bDescriptorType: Endpoint */
-        PRESS_HID_EPOUT,                                                        /* bEndpointAddress: Endpoint number and direction (address 1, OUT) */
-        0x03,                                                                   /* bmAttributes: Interrupt */
-        LOBYTE(USB_PRESS_OUT_PACKET_SIZE), HIBYTE(USB_PRESS_OUT_PACKET_SIZE),   /* wMaxPacketSize: Max. no. data bytes the endpoint can transfer in a transaction */
-        0x01,                                                                   /* bInterval: Polling interval in ms */
-        /* 73 bytes */
-
 //============================ MOUSE
 
         /*********************  Mouse HID interface *********************/
@@ -221,7 +178,7 @@ __ALIGN_BEGIN uint8_t USBD_COMPOSITE_HID_CfgDesc[USB_COMPOSITE_HID_CONFIG_DESC_S
         0x00,                           /* bInterfaceSubClass */
         0x00,                           /* bInterfaceProtocol */
         USBD_IDX_INTERFACE_MOUSE_STR,   /* iInterface: Index to string that describes the interface */
-        /* 82 bytes */
+        /* 50 bytes */
 
         /********************  Mouse HID Descriptor ********************/
         0x09,                               /* bLength: MOUSE_HID Descriptor size*/
@@ -230,17 +187,17 @@ __ALIGN_BEGIN uint8_t USBD_COMPOSITE_HID_CfgDesc[USB_COMPOSITE_HID_CONFIG_DESC_S
         0x00,                               /* bCountryCode: Hardware target country*/
         0x01,                               /* bNumDescriptors: Number of MOUSE_HID class descriptors to follow*/
         0x22,                               /* bDescriptorType*/
-        0x00, 0x00,                         /* wItemLength: Total length of Report descriptor */        /* 90(low), 91(high)  - Mouse report descriptor size set during init */
-        /* 91 bytes */
+        0x00, 0x00,                         /* wItemLength: Total length of Report descriptor */
+        /* 59 bytes */
 
         /*********************  Mouse HID endpoints *********************/
         0x07,                     /* bLength: Endpoint descriptor size */
         0x05,                     /* bDescriptorType: Endpoint */
         MOUSE_HID_EPIN,           /* bEndpointAddress: Endpoint number and direction (address 1, IN) */
         0x03,                     /* bmAttributes: Interrupt */
-        0x00, 0x00,               /* wMaxPacketSize: Max. no. data bytes the endpoint can transfer in a transaction */ /* 96(low), 97(high), Mouse report length, set during init */
+        0x00, 0x00,               /* wMaxPacketSize: Max. no. data bytes the endpoint can transfer in a transaction */
         0x01,                     /* bInterval: Polling interval in ms */
-        /* 98 bytes */
+        /* 66 bytes */
 };
 
 /* USB Standard Device Descriptor */
@@ -282,11 +239,6 @@ static uint8_t  USBD_COMPOSITE_HID_Init (USBD_HandleTypeDef *pdev,
   if(ret != USBD_OK)
       return ret;
 
-  /* PRESS initialization */
-  ret = USBD_PRESS_HID_Init(pdev, cfgidx);
-  if(ret != USBD_OK)
-      return ret;
-
   /* MOUSE initialization */
   ret = USBD_MOUSE_HID_Init(pdev, cfgidx);
   if(ret != USBD_OK)
@@ -311,9 +263,6 @@ static uint8_t  USBD_COMPOSITE_HID_DeInit (USBD_HandleTypeDef *pdev,
     /* MOUSE initialization */
     USBD_MOUSE_HID_DeInit(pdev, cfgidx);
 
-    /* PRESS initialization */
-    USBD_PRESS_HID_DeInit(pdev, cfgidx);
-
     return USBD_OK;
 }
 
@@ -327,15 +276,12 @@ static uint8_t  USBD_COMPOSITE_HID_DeInit (USBD_HandleTypeDef *pdev,
 static uint8_t  USBD_COMPOSITE_HID_Setup (USBD_HandleTypeDef *pdev,
                                 USBD_SetupReqTypedef *req)
 {
-    /* identify if host is talking to generic, press or mouse */
+    /* identify if host is talking to generic or mouse */
     if (req->wIndex == GENERIC_INTERFACE_NUM)
         return USBD_GENERIC_HID_Setup(pdev, req);
 
     else if(req->wIndex == MOUSE_INTERFACE_NUM)
         return USBD_MOUSE_HID_Setup(pdev, req);
-
-    else if(req->wIndex == PRESS_INTERFACE_NUM)
-        return USBD_PRESS_HID_Setup(pdev, req);
 
     else // should never be in here
         return !USBD_OK;
@@ -351,36 +297,34 @@ static uint8_t  USBD_COMPOSITE_HID_Setup (USBD_HandleTypeDef *pdev,
   */
 static uint8_t  *USBD_COMPOSITE_HID_GetCfgDesc (uint16_t *length)
 {
-    uint8_t *USBD_COMPOSITE_HID_NO_DIGITIZER_CfgDesc = 0;
-
     // alter config descriptor depending on number of interfaces
-    if(NumInterfaces == 2)
+    if (NumInterfaces == 1)
     {
         /* set reported length */
         USBD_COMPOSITE_HID_CfgDesc[2] = LOBYTE(USB_COMPOSITE_HID_CONFIG_NO_DIGITIZER_DESC_SIZE);  // low byte
         USBD_COMPOSITE_HID_CfgDesc[3] = HIBYTE(USB_COMPOSITE_HID_CONFIG_NO_DIGITIZER_DESC_SIZE);  // high byte
 
         /* set number of reported interfaces */
-        USBD_COMPOSITE_HID_CfgDesc[4] = USBD_GENERIC_AND_PRESS_INTERFACES_ONLY;
-
-        /* set pointer to start of config descriptor */
-        USBD_COMPOSITE_HID_NO_DIGITIZER_CfgDesc = USBD_COMPOSITE_HID_CfgDesc;
+        USBD_COMPOSITE_HID_CfgDesc[4] = NumInterfaces;
 
         *length = USB_COMPOSITE_HID_CONFIG_NO_DIGITIZER_DESC_SIZE;
-        return USBD_COMPOSITE_HID_NO_DIGITIZER_CfgDesc;
+        return USBD_COMPOSITE_HID_CfgDesc;
     }
-
-    else
+    else if (NumInterfaces == 2)
     {
         /* change reported length */
         USBD_COMPOSITE_HID_CfgDesc[2] = LOBYTE(USB_COMPOSITE_HID_CONFIG_DESC_SIZE);  // low byte
         USBD_COMPOSITE_HID_CfgDesc[3] = HIBYTE(USB_COMPOSITE_HID_CONFIG_DESC_SIZE);  // high byte
 
         /* set number of reported interfaces */
-        USBD_COMPOSITE_HID_CfgDesc[4] = USBD_MAX_NUM_INTERFACES;
+        USBD_COMPOSITE_HID_CfgDesc[4] = NumInterfaces;
 
-        *length = sizeof (USBD_COMPOSITE_HID_CfgDesc);
+        *length = sizeof(USBD_COMPOSITE_HID_CfgDesc);
         return USBD_COMPOSITE_HID_CfgDesc;
+    }
+    else
+    {
+        return NULL;
     }
 }
 
@@ -401,9 +345,6 @@ static uint8_t  USBD_COMPOSITE_HID_DataIn (USBD_HandleTypeDef *pdev,
     else if(epnum == MOUSE_EPIN_IDX)
         return USBD_MOUSE_HID_DataIn(pdev, epnum);
 
-    else if(epnum == PRESS_EPIN_IDX)
-        return USBD_PRESS_HID_DataIn(pdev, epnum);
-
     else
         return !USBD_OK;
 }
@@ -421,9 +362,6 @@ static uint8_t  USBD_COMPOSITE_HID_DataOut (USBD_HandleTypeDef *pdev,
     /* identify which interface host is talking to */
     if(epnum == GENERIC_EPOUT_IDX)
         return USBD_GENERIC_HID_DataOut(pdev, epnum);
-
-    else if(epnum == PRESS_EPOUT_IDX)
-        return USBD_PRESS_HID_DataOut(pdev, epnum);
 
     else
         return !USBD_OK;
@@ -480,11 +418,6 @@ uint8_t Send_USB_Report(uint8_t interface,USBD_HandleTypeDef  *pdev, uint8_t *re
             case MOUSE:
             {
                 status = SendReport_MouseEndpoint(pdev, report, len);
-                break;
-            }
-            case PRESS:
-            {
-                status = SendReport_PressEndpoint(pdev, report, len);
                 break;
             }
         }

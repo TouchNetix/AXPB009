@@ -23,10 +23,8 @@
 #include "usbd_conf.h"
 #include "usbd_mouse.h"
 #include "usbd_generic.h"
-#include "usbd_press.h"
 #include "usbd_mouse_if.h"
 #include "usbd_generic_if.h"
-#include "usbd_press_if.h"
 #include <stdbool.h>
 
 #include "Flash_Control.h"

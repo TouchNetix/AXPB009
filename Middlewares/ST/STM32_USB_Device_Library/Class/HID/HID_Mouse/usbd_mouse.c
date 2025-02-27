@@ -115,38 +115,26 @@ void MatchReportDescriptorToMode(USBD_HandleTypeDef *pdev, uint8_t BridgeMode)
     {
         case ABSOLUTE_MOUSE:
             /* report descriptor length */
-            USBD_COMPOSITE_HID_CfgDesc[89] = USBD_MOUSE_ABS_REPORT_DESC_SIZE_LO; // LOBYTE
-            USBD_COMPOSITE_HID_CfgDesc[90] = USBD_MOUSE_ABS_REPORT_DESC_SIZE_HI; // HIBYTE
+            USBD_COMPOSITE_HID_CfgDesc[57] = USBD_MOUSE_ABS_REPORT_DESC_SIZE_LO; // LOBYTE
+            USBD_COMPOSITE_HID_CfgDesc[58] = USBD_MOUSE_ABS_REPORT_DESC_SIZE_HI; // HIBYTE
 
             /* report size */
-            USBD_COMPOSITE_HID_CfgDesc[95] = LOBYTE(MOUSE_ABS_REPORT_LENGTH); // LOBYTE
-            USBD_COMPOSITE_HID_CfgDesc[96] = HIBYTE(MOUSE_ABS_REPORT_LENGTH); // HIBYTE
+            USBD_COMPOSITE_HID_CfgDesc[63] = LOBYTE(MOUSE_ABS_REPORT_LENGTH); // LOBYTE
+            USBD_COMPOSITE_HID_CfgDesc[64] = HIBYTE(MOUSE_ABS_REPORT_LENGTH); // HIBYTE
 
             /* point to correct descriptor */
             ((USBD_MOUSE_HID_ItfTypeDef *)pdev->pClassSpecificInterfaceMOUSE)->pReport = mouse_abs_ReportDesc_FS;
             break;
 
         case PARALLEL_DIGITIZER:
-            /* report descriptor length */
-            USBD_COMPOSITE_HID_CfgDesc[89] = USBD_MOUSE_PAR_DIGITIZER_DESC_SIZE_LO; // LOBYTE
-            USBD_COMPOSITE_HID_CfgDesc[90] = USBD_MOUSE_PAR_DIGITIZER_DESC_SIZE_HI; // HIBYTE
-
-            /* report size */
-            USBD_COMPOSITE_HID_CfgDesc[95] = LOBYTE(MOUSE_PARALLEL_DIGITIZER_REPORT_LENGTH); // LOBYTE
-            USBD_COMPOSITE_HID_CfgDesc[96] = HIBYTE(MOUSE_PARALLEL_DIGITIZER_REPORT_LENGTH); // HIBYTE
-
-            /* point to correct descriptor */
-            ((USBD_MOUSE_HID_ItfTypeDef *)pdev->pClassSpecificInterfaceMOUSE)->pReport = mouse_parallel_digitizer_ReportDesc_FS;
-            break;
-
         default:
             /* report descriptor length */
-            USBD_COMPOSITE_HID_CfgDesc[89] = USBD_MOUSE_PAR_DIGITIZER_DESC_SIZE_LO; // LOBYTE
-            USBD_COMPOSITE_HID_CfgDesc[90] = USBD_MOUSE_PAR_DIGITIZER_DESC_SIZE_HI; // HIBYTE
+            USBD_COMPOSITE_HID_CfgDesc[57] = USBD_MOUSE_PAR_DIGITIZER_DESC_SIZE_LO; // LOBYTE
+            USBD_COMPOSITE_HID_CfgDesc[58] = USBD_MOUSE_PAR_DIGITIZER_DESC_SIZE_HI; // HIBYTE
 
             /* report size */
-            USBD_COMPOSITE_HID_CfgDesc[95] = LOBYTE(MOUSE_PARALLEL_DIGITIZER_REPORT_LENGTH); // LOBYTE
-            USBD_COMPOSITE_HID_CfgDesc[96] = HIBYTE(MOUSE_PARALLEL_DIGITIZER_REPORT_LENGTH); // HIBYTE
+            USBD_COMPOSITE_HID_CfgDesc[63] = LOBYTE(MOUSE_PARALLEL_DIGITIZER_REPORT_LENGTH); // LOBYTE
+            USBD_COMPOSITE_HID_CfgDesc[64] = HIBYTE(MOUSE_PARALLEL_DIGITIZER_REPORT_LENGTH); // HIBYTE
 
             /* point to correct descriptor */
             ((USBD_MOUSE_HID_ItfTypeDef *)pdev->pClassSpecificInterfaceMOUSE)->pReport = mouse_parallel_digitizer_ReportDesc_FS;
@@ -180,12 +168,12 @@ void ConfigureCfgDescriptor(uint8_t MousMode)
     if(BridgeMode == ABSOLUTE_MOUSE || BridgeMode == PARALLEL_DIGITIZER)  // mouse/digitizer enabled
     {
         boMouseEnabled = true;
-        NumInterfaces = 3;
+        NumInterfaces = 2;
     }
     else
     {
         boMouseEnabled = false;
-        NumInterfaces = 2;
+        NumInterfaces = 1;
     }
 }
 
@@ -345,8 +333,8 @@ uint8_t  USBD_MOUSE_HID_Setup (USBD_HandleTypeDef *pdev,
       if( req->wValue >> 8 == MOUSE_HID_REPORT_DESC)
       {
           // sets correct report length to give to host
-          uint8_t DescSize_LoByte = USBD_COMPOSITE_HID_CfgDesc[89];
-          uint8_t DescSize_HiByte = USBD_COMPOSITE_HID_CfgDesc[90];
+          uint8_t DescSize_LoByte = USBD_COMPOSITE_HID_CfgDesc[63];
+          uint8_t DescSize_HiByte = USBD_COMPOSITE_HID_CfgDesc[64];
           uint16_t MouseReportDescSize = (DescSize_HiByte << 8) | (DescSize_LoByte); // concatenates the low and bytes into a 16 bit value
 
           len = MIN(MouseReportDescSize , req->wLength);

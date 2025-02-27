@@ -37,11 +37,9 @@
 #include "I2C_Comms.h"
 #include "usbd_generic_if.h"
 #include "usbd_mouse_if.h"
-#include "usbd_press_if.h"
 #include "Flash_Control.h"
 #include "Proxy_driver.h"
 #include "Digitizer.h"
-#include "Press_driver.h"
 #include "Usage_Builder.h"
 #include "Mode_Control.h"
 #include "usb_device.h"
@@ -70,13 +68,10 @@
 #define CMD_START_PROXY                 (0x88u)     /* bridge continually reads reports from aXiom and chucks it up the USB to the host */
 #define CMD_GET_CONFIG                  (0x8Bu)     /* TH2 COMPATIBILITY - TH2 reads some operating parameters from the bridge */
 #define CMD_RESET_AXIOM                 (0x99u)     /* allows user to reset aXiom at will via a command */
-#define CMD_WRITE_USAGE                 (0xA2u)     /* used when in digitizer or mouse mode - i.e. when used in anything that isn't TH2 */
-#define CMD_READ_USAGE                  (0xA3u)     /* used when in digitizer or mouse mode - i.e. when used in anything that isn't TH2 */
 #define CMD_FIND_I2C_ADDRESS            (0xE0u)     /* returns the i2c address of aXiom, or reports as in SPI mode */
 
 //------------Mode switch Commands
 #define CMD_BLOCK_DIGITIZER_REPORTS     (0x87u)     /* enables/disables mouse reports */
-#define CMD_BLOCK_PRESS_REPORTS         (0xB1u)     /* enables/disables press reports */
 #define CMD_RESET_BRIDGE                (0xEFu)
 #define CMD_GET_PART_ID                 (0xF0u)     /* returns an id used by TH2 to load the correct dfu file */
 #define CMD_ENTER_BOOTLOADER            (0xF5u)
@@ -106,7 +101,10 @@
 #define CMD_CONFIG_READ_PINS                (0x81u) /* RESERVED - Used by the PB005/7 */
 #define CMD_GET_VOLTAGE                     (0xA0u) /* RESERVED - Used by the PB005/7 */
 #define CMD_CALL_SELFTEST                   (0xA1u) /* RESERVED - Used by the PB005/7 */
+#define CMD_WRITE_USAGE                     (0xA2u) /* RESERVED - Legacy command      */
+#define CMD_READ_USAGE                      (0xA3u) /* RESERVED - Legacy command      */
 #define CMD_CLOCK_PRESS                     (0xB0u) /* RESERVED - Used by the PB005/7 */
+#define CMD_BLOCK_PRESS_REPORTS             (0xB1u) /* RESERVED - Legacy command      */
 #define CMD_RnR_PEAK_PRESS                  (0xC0u) /* RESERVED - Used by the PB005/7 */
 #define CMD_FLIP_MOUSE_AXES                 (0xD0u) /* RESERVED - Used by the PB005/7 */
 #define CMD_SET_IO_A                        (0xE4u) /* RESERVED - Used by the PB005/7 */
@@ -127,54 +125,9 @@
 
 /*============ Exported Variables ============*/
 bool    boGenericTBPResponseWaiting = 0;
-bool    boPressTBPResponseWaiting = 0;
 uint8_t *pTBPCommandReport = 0;
 
-static bool UsageReadWrite_ErrorChecks(int16_t usage_table_idx, uint16_t usage_length_in_bytes);
-
 /*============ Functions ============*/
-static bool UsageReadWrite_ErrorChecks(int16_t usage_table_idx, uint16_t usage_length_in_bytes)
-{
-    bool error_check_passed;
-
-    if(usagetable[usage_table_idx].numpages == 0)
-    {
-        /* usage length zero --> usage is a report placeholder so can't be written to */
-        pTBPCommandReport[1] = 0x95;
-        pTBPCommandReport[2] = 0x80;    // error flag
-        error_check_passed = false;
-    }
-    else if(pTBPCommandReport[2] > (usagetable[usage_table_idx].numpages-1))
-    {
-        /* start page too large */
-        pTBPCommandReport[1] = 0x94;
-        pTBPCommandReport[2] = 0x80;    // error flag
-        error_check_passed = false;
-    }
-    else if(pTBPCommandReport[3] >= usage_length_in_bytes)
-    {
-        /* offset into page address beyond end of usage */
-        pTBPCommandReport[1] = 0x93;
-        pTBPCommandReport[2] = 0x80;    // error flag
-        error_check_passed = false;
-    }
-    else if(pTBPCommandReport[4] > usage_length_in_bytes)
-    {
-        /* too many bytes requested */
-        pTBPCommandReport[1] = 0x92;
-        pTBPCommandReport[2] = 0x80;    // error flag
-        pTBPCommandReport[3] = (uint8_t)(usage_length_in_bytes & 0xFF);
-        pTBPCommandReport[4] = (uint8_t)(usage_length_in_bytes >> 8);
-        error_check_passed = false;
-    }
-    else
-    {
-        // no errors found
-        error_check_passed = true;
-    }
-
-    return error_check_passed;
-}
 
 void ProcessTBPCommand()
 {
@@ -198,10 +151,6 @@ void ProcessTBPCommand()
 
         // de-init proxy gpio pin
         DeInitProxyInterruptMode();
-    }
-    else if(target_interface == PRESS_INTERFACE_NUM)
-    {
-        pTBPCommandReport = pTBPCommandReportPress;
     }
 
     switch (pTBPCommandReport[0])
@@ -298,121 +247,6 @@ void ProcessTBPCommand()
             break;
         }
 //-------
-        case CMD_WRITE_USAGE:   //0xA2
-        case CMD_READ_USAGE:    //0xA3
-        {
-            int16_t  usage_table_idx;
-            uint16_t usage_length_in_bytes;
-            uint16_t start_address;
-
-            /* WRITE USAGE
-             * Command bytes
-             * 1: usage number
-             * 2: relative start page (0 means 1st page, 1 meand 2ns page etc.)
-             * 3: byte offset into page
-             * 4: no. bytes to write (min 0, max usage_len_bytes - 1)
-             * 5+: data to write
-             *
-             * READ USAGE
-             * 1: usage number
-             * 2: start page
-             * 3: byte offset into usage
-             * 4: no. bytes to read
-             *
-             * RETURN
-             * 1-4: echo command
-             * 5+: data read
-             */
-
-            if(!(BridgeMode == PARALLEL_DIGITIZER || BridgeMode == ABSOLUTE_MOUSE || 1))   // we're *always* in press mode so this never triggers!
-            {
-                /* bridge in incorrect mode */
-                pTBPCommandReport[1] = 0x98;    // error code
-                pTBPCommandReport[2] = 0x80;    // error flag
-            }
-            else
-            {
-                usage_table_idx = find_usage_from_table(pTBPCommandReport[1]);
-
-                if(usage_table_idx < 0) // above function returns -1 if usage not found
-                {
-                    /* usage number is not known to bridge */
-                    pTBPCommandReport[1] = 0x96;    // error code
-                    pTBPCommandReport[2] = 0x80;    // error flag
-                }
-                else
-                {
-                    //calculate how many bytes long the usage is?
-                    usage_length_in_bytes = ((usagetable[usage_table_idx].maxoffset & 0x80) == 0x00) ?
-                                            ((uint16_t)usagetable[usage_table_idx].numpages) * (((uint16_t)(usagetable[usage_table_idx].maxoffset & 0x7F) + 1) * 2) :
-                                            (((uint16_t)usagetable[usage_table_idx].numpages - 1) << 7) + (((uint16_t)(usagetable[usage_table_idx].maxoffset & 0x7F) + 1) * 2);
-
-                    // if reading the host can ask for 0 bytes --> indicates they want to read the usage table entry
-                    if((pTBPCommandReport[0] == CMD_READ_USAGE) && (pTBPCommandReport[4] == 0))
-                    {
-                        memcpy(&pTBPCommandReport[5], (uint8_t *)&usagetable[usage_table_idx], sizeof(usagetable[usage_table_idx]));
-                    }
-                    else
-                    {
-                        if(UsageReadWrite_ErrorChecks(usage_table_idx, usage_length_in_bytes) == false)
-                        {
-                            /* false means an error has been triggered */
-                        }
-                        else // no errors so continue with write
-                        {
-                            memset(aXiom_Tx_Buffer, 0, sizeof(aXiom_Tx_Buffer));
-
-                            start_address = ((usagetable[usage_table_idx].maxoffset & 0x80) == 0x00) ?
-                                         ((uint16_t)usagetable[usage_table_idx].startpage << 8) + (((uint16_t)pTBPCommandReport[2] * ((uint16_t)(usagetable[usage_table_idx].maxoffset & 0x7F) + 1)) * 2) + pTBPCommandReport[3] :
-                                         ((uint16_t)usagetable[usage_table_idx].startpage << 8) + (((uint16_t)pTBPCommandReport[2] * 2) + pTBPCommandReport[3]);
-
-                            aXiom_Tx_Buffer[0] = (uint8_t)(start_address & 0xFF);
-                            aXiom_Tx_Buffer[1] = (uint8_t)((start_address >> 8) & 0xFF);
-
-                            if(pTBPCommandReport[0] == CMD_READ_USAGE)
-                            {
-                                aXiom_Tx_Buffer[2] = (uint8_t)pTBPCommandReport[4]; // no. bytes host wants to write to device
-                                aXiom_Tx_Buffer[3] = (uint8_t)READ;
-                                aXiom_NumBytesTx = 4;
-                                aXiom_NumBytesRx = pTBPCommandReport[4];
-                            }
-                            else
-                            {
-                                aXiom_Tx_Buffer[2] = (uint8_t)(pTBPCommandReport[4]); // no. bytes host wants to write to device
-                                aXiom_Tx_Buffer[3] = (uint8_t)(WRITE); // sets the write flag
-
-                                aXiom_NumBytesTx = 4 + pTBPCommandReport[4];
-                                aXiom_NumBytesRx = 0; // doing a write here so not reading any bytes
-
-                                // copy data to write into comms buffer ready to send
-                                memcpy(&aXiom_Tx_Buffer[4], &pTBPCommandReport[5], aXiom_NumBytesTx);
-                            }
-
-                            if(Comms_Sequence() == HAL_ERROR)
-                            {
-                                /* comms error (internal) */
-                                pTBPCommandReport[1] = 0x97;    // error code
-                                pTBPCommandReport[2] = 0x80;    // error flag
-                            }
-                            else
-                            {
-                                if(pTBPCommandReport[0] == CMD_READ_USAGE)
-                                {
-                                    memcpy(&pTBPCommandReport[5], &aXiom_Rx_Buffer[CircularBufferHead][2], aXiom_NumBytesRx);
-                                }
-                                else
-                                {
-                                    // doing a write so only need to echo back command data
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            break;
-        }
-//-------
         case CMD_START_PROXY: //0x88  /* bridge continually reads reports from aXiom and chucks it up the USB to the host */
         {
             if((pTBPCommandReport[2] == NUMPROXYBYTES_TX) && ((pTBPCommandReport[7] & 0x80) == READ)) // check no. write bytes and read bit is correct
@@ -437,14 +271,6 @@ void ProcessTBPCommand()
         {
             boMouseEnabled = (pTBPCommandReport[1] == 0);   // if command byte is non-zero then the digitizer is disabled
             boProxyEnabled = boProxyMode_temp;  // restore the mode proxy was in before function was called
-            boInternalProxy = boInternalProxy_temp; // restore the mode proxy was in before function was called
-            break;
-        }
-//-------
-        case CMD_BLOCK_PRESS_REPORTS: //0xB1
-        {
-            boBlockPressReports = (pTBPCommandReport[1] != 0);
-            boProxyEnabled = boProxyMode_temp;  // reinstate previous proxy mode
             boInternalProxy = boInternalProxy_temp; // restore the mode proxy was in before function was called
             break;
         }
@@ -579,10 +405,6 @@ void ProcessTBPCommand()
         if(target_interface == GENERIC_INTERFACE_NUM)
         {
             boGenericTBPResponseWaiting = 1;
-        }
-        else if(target_interface == PRESS_INTERFACE_NUM)
-        {
-            boPressTBPResponseWaiting = 1;
         }
 
         boRespondNow = 0;
