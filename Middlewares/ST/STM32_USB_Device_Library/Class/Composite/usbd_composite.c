@@ -165,7 +165,7 @@ __ALIGN_BEGIN uint8_t USBD_COMPOSITE_HID_CfgDesc[USB_COMPOSITE_HID_CONFIG_DESC_S
         GENERIC_HID_EPOUT,                                              /* bEndpointAddress: Endpoint number and direction (address 1, OUT) */
         0x03,                                                           /* bmAttributes: Interrupt */
         LOBYTE(USB_FS_MAX_PACKET_SIZE), HIBYTE(USB_FS_MAX_PACKET_SIZE), /* wMaxPacketSize: Max. no. data bytes the endpoint can transfer in a transaction */
-        0x05,                                                           /* bInterval: Polling interval in ms */
+        0x01,                                                           /* bInterval: Polling interval in ms */
         /* 41 bytes */
 
 //============================ PRESS
@@ -206,7 +206,7 @@ __ALIGN_BEGIN uint8_t USBD_COMPOSITE_HID_CfgDesc[USB_COMPOSITE_HID_CONFIG_DESC_S
         PRESS_HID_EPOUT,                                                        /* bEndpointAddress: Endpoint number and direction (address 1, OUT) */
         0x03,                                                                   /* bmAttributes: Interrupt */
         LOBYTE(USB_PRESS_OUT_PACKET_SIZE), HIBYTE(USB_PRESS_OUT_PACKET_SIZE),   /* wMaxPacketSize: Max. no. data bytes the endpoint can transfer in a transaction */
-        0x05,                                                                   /* bInterval: Polling interval in ms */
+        0x01,                                                                   /* bInterval: Polling interval in ms */
         /* 73 bytes */
 
 //============================ MOUSE
