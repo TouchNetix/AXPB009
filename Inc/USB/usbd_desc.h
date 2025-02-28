@@ -67,8 +67,8 @@
 
 /* USER CODE BEGIN EXPORTED_DEFINES */
 // XXX USB Firmware revision, interface names, VID and PIDs
-#define USB_DEVICE_MAJOR_VERSION                (0xFF)
-#define USB_DEVICE_MINOR_VERSION                (0xFF) // these are both BCD, e.g. 0x12 means .12
+#define USB_DEVICE_MAJOR_VERSION                (0x03)
+#define USB_DEVICE_MINOR_VERSION                (0x00) // these are both BCD, e.g. 0x12 means .12
 #define USBD_VID                                (0x0483)
 #define DEVICE_MODE_PID_TBP                     (0x6F02u)
 #define DEVICE_MODE_PID_PARALLEL_DIGITIZER      (0x2F04u)

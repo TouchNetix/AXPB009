@@ -164,8 +164,82 @@ __ALIGN_BEGIN uint8_t USBD_COMPOSITE_HID_CfgDesc[USB_COMPOSITE_HID_CONFIG_DESC_S
         GENERIC_HID_EPOUT,                                              /* bEndpointAddress: Endpoint number and direction (address 1, OUT) */
         0x03,                                                           /* bmAttributes: Interrupt */
         LOBYTE(USB_FS_MAX_PACKET_SIZE), HIBYTE(USB_FS_MAX_PACKET_SIZE), /* wMaxPacketSize: Max. no. data bytes the endpoint can transfer in a transaction */
-        0x05,                                                           /* bInterval: Polling interval in ms */
+        0x01,                                                           /* bInterval: Polling interval in ms */
         /* 41 bytes */
+
+//============================ PRESS
+
+        /*********************  Press HID interface *********************/
+        0x09,                           /* bLength: Interface descriptor size */
+        0x04,                           /* bDescriptorType: Interface */
+        PRESS_INTERFACE_NUM,            /* bInterfaceNumber: no. interface */
+        0x00,                           /* bAlternateSetting */
+        0x02,                           /* bNumEndPoints */
+        0x03,                           /* bInterfaceClass: HID */
+        0x00,                           /* bInterfaceSubClass */
+        0x00,                           /* bInterfaceProtocol */
+        USBD_IDX_INTERFACE_PRESS_STR,   /* iInterface: Index to string that describes the interface */
+        /* 50 bytes */
+
+        /********************  Press HID Descriptor ********************/
+        0x09,                                   /* bLength: PRESS_HID Descriptor size*/
+        COMPOSITE_HID_DESCRIPTOR_TYPE,          /* bDescriptorType: PRESS_HID*/
+        0x11, 0x01,                             /* bcdUSB: USB Spec release number*/
+        0x00,                                   /* bCountryCode: Hardware target country*/
+        0x01,                                   /* bNumDescriptors: Number of PRESS_HID class descriptors to follow*/
+        0x22,                                   /* bDescriptorType*/
+        USBD_PRESS_HID_REPORT_DESC_SIZE, 0x00,  /* wItemLength: Total length of Report descriptor*/
+        /* 59 bytes */
+
+        /*********************  Press HID endpoints *********************/
+        0x07,                                                                   /* bLength: Endpoint descriptor size */
+        0x05,                                                                   /* bDescriptorType: Endpoint */
+        PRESS_HID_EPIN,                                                         /* bEndpointAddress: Endpoint number and direction (address 1, IN) */
+        0x03,                                                                   /* bmAttributes: Interrupt */
+        LOBYTE(USB_FS_MAX_PACKET_SIZE), HIBYTE(USB_FS_MAX_PACKET_SIZE),         /* wMaxPacketSize: Max. no. data bytes the endpoint can transfer in a transaction */
+        0x01,                                                                   /* bInterval: Polling interval in ms */
+        /* 66 bytes */
+
+        0x07,                                                                   /* bLength: Endpoint descriptor size */
+        0x05,                                                                   /* bDescriptorType: Endpoint */
+        PRESS_HID_EPOUT,                                                        /* bEndpointAddress: Endpoint number and direction (address 1, OUT) */
+        0x03,                                                                   /* bmAttributes: Interrupt */
+        LOBYTE(USB_PRESS_OUT_PACKET_SIZE), HIBYTE(USB_PRESS_OUT_PACKET_SIZE),   /* wMaxPacketSize: Max. no. data bytes the endpoint can transfer in a transaction */
+        0x01,                                                                   /* bInterval: Polling interval in ms */
+        /* 73 bytes */
+
+//============================ MOUSE
+
+        /*********************  Mouse HID interface *********************/
+        0x09,                           /* bLength: Interface descriptor size */
+        0x04,                           /* bDescriptorType: Interface */
+        MOUSE_INTERFACE_NUM,            /* bInterfaceNumber: no. interface */
+        0x00,                           /* bAlternateSetting */
+        0x01,                           /* bNumEndPoints */
+        0x03,                           /* bInterfaceClass: HID */
+        0x00,                           /* bInterfaceSubClass */
+        0x00,                           /* bInterfaceProtocol */
+        USBD_IDX_INTERFACE_MOUSE_STR,   /* iInterface: Index to string that describes the interface */
+        /* 82 bytes */
+
+        /********************  Mouse HID Descriptor ********************/
+        0x09,                               /* bLength: MOUSE_HID Descriptor size*/
+        COMPOSITE_HID_DESCRIPTOR_TYPE,      /* bDescriptorType: MOUSE_HID*/
+        0x11, 0x01,                         /* bcdUSB: USB Spec release number*/
+        0x00,                               /* bCountryCode: Hardware target country*/
+        0x01,                               /* bNumDescriptors: Number of MOUSE_HID class descriptors to follow*/
+        0x22,                               /* bDescriptorType*/
+        0x00, 0x00,                         /* wItemLength: Total length of Report descriptor */        /* 90(low), 91(high)  - Mouse report descriptor size set during init */
+        /* 91 bytes */
+
+        /*********************  Mouse HID endpoints *********************/
+        0x07,                     /* bLength: Endpoint descriptor size */
+        0x05,                     /* bDescriptorType: Endpoint */
+        MOUSE_HID_EPIN,           /* bEndpointAddress: Endpoint number and direction (address 1, IN) */
+        0x03,                     /* bmAttributes: Interrupt */
+        0x00, 0x00,               /* wMaxPacketSize: Max. no. data bytes the endpoint can transfer in a transaction */ /* 96(low), 97(high), Mouse report length, set during init */
+        0x01,                     /* bInterval: Polling interval in ms */
+        /* 98 bytes */
 };
 
 /* USB Standard Device Descriptor */
