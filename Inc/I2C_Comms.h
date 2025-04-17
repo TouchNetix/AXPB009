@@ -40,8 +40,8 @@
 extern uint8_t device_address;
 
 /*============ Exported Functions ============*/
-void    MX_I2C_Init(void);
-uint8_t do_i2c_comms(void);
-uint8_t get_i2c_address(void);
+void                MX_I2C_Init(void);
+HAL_StatusTypeDef   do_i2c_comms(void);
+uint8_t             get_i2c_address(void);
 
 #endif /* I2C_COMMS_H_ */
