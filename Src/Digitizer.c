@@ -127,12 +127,18 @@ bool     boUSBTimeoutEnabled                                =  0;
 bool     boMouseEnabled                                     =  1;       // starts with digitizer enable (TH2 doesn't know the command to toggle it!)
 uint8_t  wakeup_option                                      =  0;
 
+// Global variables for digitizer coordinate corners
+uint16_t g_topleft_x  = 0;
+uint16_t g_topleft_y  = 0;
+uint16_t g_botright_x = 65535;
+uint16_t g_botright_y = 65535;
+
 /*============ Local Function Prototypes ============*/
 static uint8_t GetXYZFromReport(bool boIgnoreCoords, uint8_t byTouchNum);
 static void    DecodeOneTouch(uint8_t byTouchToCheck, uint8_t *byStatus, uint8_t *wdXCoord, uint8_t *wdYCoord, uint8_t *byZAmplitude);
 static void    PrepareAbsMouseReport(void);
 static void    SendMouseRightClick(void);
-
+static int32_t Digitizer_LinearInterp(uint16_t raw_value, uint16_t min_raw, uint16_t max_raw, uint16_t min_out, uint16_t max_out);
 /*============ Local Functions ============*/
 
 // checks if the data obtained during proxy is a touch report, and whether it passed the CRC check
@@ -384,11 +390,31 @@ void MultiPointDigitizer(void)
                 digitizer_pressure = digitizer_pressure + 1;
                 digitizer_pressure = digitizer_pressure * 4;
 
+                // scale the coordinates to the correct range
+                int32_t XScaled = Digitizer_LinearInterp(DigitizerXCoord, g_topleft_x, g_botright_x, 0, 65535);
+                int32_t YScaled = Digitizer_LinearInterp(DigitizerYCoord, g_topleft_y, g_botright_y, 0, 65535);
+
+                if (XScaled < 0 || YScaled < 0)
+                {
+                    // if the coordinates are out of range, set the touch to not present
+                    touched &= ~TIP_SWITCH; 
+                    touched &= ~IN_RANGE;
+                    XScaled = 0;
+                    YScaled = 0;
+                }
+                else
+                {
+                    // Windows XY coordinate range is 0-4095, hence the right-shift (axiom range is 0-65535 -> RS by 4 to obtain 4095).
+                    // Loses resolution but necessary for Windows.
+                    XScaled = XScaled >> 4;
+                    YScaled = YScaled >> 4;
+                }
+
                 usb_hid_mouse_report_in[ALIGN_WITH_CORRECT_TOUCH(byTouchNum) + TOUCH_NUMBER]      = (uint8_t)(byTouchNum << 3u) | touched;
-                usb_hid_mouse_report_in[ALIGN_WITH_CORRECT_TOUCH(byTouchNum) + X_COORD_LSB]       = (DigitizerXCoord >> 4) & 0xFF;
-                usb_hid_mouse_report_in[ALIGN_WITH_CORRECT_TOUCH(byTouchNum) + X_COORD_MSB]       = (DigitizerXCoord >> 4) >> 8;
-                usb_hid_mouse_report_in[ALIGN_WITH_CORRECT_TOUCH(byTouchNum) + Y_COORD_LSB]       = (DigitizerYCoord >> 4) & 0xFF;
-                usb_hid_mouse_report_in[ALIGN_WITH_CORRECT_TOUCH(byTouchNum) + Y_COORD_MSB]       = (DigitizerYCoord >> 4) >> 8;
+                usb_hid_mouse_report_in[ALIGN_WITH_CORRECT_TOUCH(byTouchNum) + X_COORD_LSB]       = (uint8_t)((uint16_t)(XScaled) & 0xFF);
+                usb_hid_mouse_report_in[ALIGN_WITH_CORRECT_TOUCH(byTouchNum) + X_COORD_MSB]       = (uint8_t)(((uint16_t)(XScaled)) >> 8);
+                usb_hid_mouse_report_in[ALIGN_WITH_CORRECT_TOUCH(byTouchNum) + Y_COORD_LSB]       = (uint8_t)((uint16_t)(YScaled) & 0xFF);
+                usb_hid_mouse_report_in[ALIGN_WITH_CORRECT_TOUCH(byTouchNum) + Y_COORD_MSB]       = (uint8_t)(((uint16_t)(YScaled)) >> 8);
                 usb_hid_mouse_report_in[ALIGN_WITH_CORRECT_TOUCH(byTouchNum) + PRESSURE_LSB]      = (uint8_t)(digitizer_pressure & 0xFF);
                 usb_hid_mouse_report_in[ALIGN_WITH_CORRECT_TOUCH(byTouchNum) + PRESSURE_MSB]      = (uint8_t)((digitizer_pressure >> 8) & 0xFF);
             }
@@ -485,3 +511,79 @@ void setup_proxy_for_digitizer(void)
 }
 
 /*-----------------------------------------------------------*/
+
+bool Digitizer_Set_Coordinates(uint8_t tl_x_lo, uint8_t tl_x_hi, uint8_t tl_y_lo, uint8_t tl_y_hi, uint8_t br_x_lo, uint8_t br_x_hi, uint8_t br_y_lo, uint8_t br_y_hi)
+{
+    // Convert to 16-bit values and assign to global variables 
+    uint16_t topleft_x  = ((uint16_t)(tl_x_hi) << 8)  | tl_x_lo;
+    uint16_t topleft_y  = ((uint16_t)(tl_y_hi) << 8)  | tl_y_lo;
+    uint16_t botright_x = ((uint16_t)(br_x_hi) << 8)  | br_x_lo;
+    uint16_t botright_y = ((uint16_t)(br_y_hi) << 8)  | br_y_lo;
+
+    // Clamp values to 0-65535
+    if (topleft_x > 65535) { topleft_x = 65535; }
+    if (topleft_y > 65535) { topleft_y = 65535; }
+    if (botright_x > 65535) { botright_x = 65535; }
+    if (botright_y > 65535) { botright_y = 65535; }
+
+    // Ensure bottom-right is not less than top-left
+    if ((botright_x < topleft_x) || (botright_y < topleft_y)) 
+    {
+        // Error handling: set to default values
+        g_topleft_x  = 0;
+        g_topleft_y  = 0;
+        g_botright_x = 65535;
+        g_botright_y = 65535;
+        return false; 
+    }
+    else
+    {
+        // Assign to global variables
+        g_topleft_x  = topleft_x;
+        g_topleft_y  = topleft_y;
+        g_botright_x = botright_x;
+        g_botright_y = botright_y;
+        return true;
+    }
+}
+
+/*-----------------------------------------------------------*/
+
+/**
+ * @brief Linearly interpolates a value from the digitizer's raw coordinate space to the configured logical coordinate space.
+ * @param raw_value The raw coordinate value (e.g., DigitizerXCoord or DigitizerYCoord).
+ * @param min_raw The minimum raw value (e.g., g_topleft_x or g_topleft_y).
+ * @param max_raw The maximum raw value (e.g., g_botright_x or g_botright_y).
+ * @param min_out The minimum output value (e.g., 0).
+ * @param max_out The maximum output value (e.g., 65535).
+ * @return The interpolated value, clamped to [min_out, max_out], or -1 on error.
+ */
+static int32_t Digitizer_LinearInterp(uint16_t raw_value, uint16_t min_raw, uint16_t max_raw, uint16_t min_out, uint16_t max_out)
+{
+    if (max_raw == min_raw) 
+    {
+        // Avoid division by zero; return error
+        return -1;
+    }
+
+    if (raw_value < min_raw) 
+    {
+        return -1;
+    }
+
+    if (raw_value > max_raw) 
+    {
+        return -1;
+    }
+
+    if (min_out >= max_out) 
+    {
+        // Avoid invalid output range; return error
+        return -1;
+    }
+
+    uint32_t scaled = (uint32_t)(raw_value - min_raw) * (uint32_t)(max_out - min_out);
+    scaled /= (max_raw - min_raw);
+    return (int32_t)(scaled + min_out);
+}
+

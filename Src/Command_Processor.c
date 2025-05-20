@@ -73,6 +73,7 @@
 #define CMD_WRITE_USAGE                 (0xA2u)     /* used when in digitizer or mouse mode - i.e. when used in anything that isn't TH2 */
 #define CMD_READ_USAGE                  (0xA3u)     /* used when in digitizer or mouse mode - i.e. when used in anything that isn't TH2 */
 #define CMD_FIND_I2C_ADDRESS            (0xE0u)     /* returns the i2c address of aXiom, or reports as in SPI mode */
+#define CMD_SET_DIGITIZER_COORDS        (0xE1u)     /* used to set the digitizer co-ordinates */
 
 //------------Mode switch Commands
 #define CMD_BLOCK_DIGITIZER_REPORTS     (0x87u)     /* enables/disables mouse reports */
@@ -438,6 +439,25 @@ void ProcessTBPCommand()
             boMouseEnabled = (pTBPCommandReport[1] == 0);   // if command byte is non-zero then the digitizer is disabled
             boProxyEnabled = boProxyMode_temp;  // restore the mode proxy was in before function was called
             boInternalProxy = boInternalProxy_temp; // restore the mode proxy was in before function was called
+            break;
+        }
+//-------
+        case CMD_SET_DIGITIZER_COORDS: //0xE1
+        {
+            /* set the digitizer co-ordinates */
+            if (Digitizer_Set_Coordinates(pTBPCommandReport[1], pTBPCommandReport[2], pTBPCommandReport[3], pTBPCommandReport[4], pTBPCommandReport[5], pTBPCommandReport[6], pTBPCommandReport[7], pTBPCommandReport[8]) == false)
+            {
+                /* error setting co-ordinates */
+                pTBPCommandReport[1] = 0x80;    // error flag
+            }
+            else
+            {
+                pTBPCommandReport[1] = 0x00;    // no error
+
+                // reinstate previous proxy mode
+                boProxyEnabled = boProxyMode_temp;
+                boInternalProxy = boInternalProxy_temp;
+            }
             break;
         }
 //-------

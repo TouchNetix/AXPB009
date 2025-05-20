@@ -56,6 +56,7 @@ extern          uint8_t  wakeup_option;
 /*============ Exported Functions ============*/
 void CRC_Checksum(void);
 void MultiPointDigitizer(void);
+bool Digitizer_Set_Coordinates(uint8_t tl_x_lo, uint8_t tl_x_hi, uint8_t tl_y_lo, uint8_t tl_y_hi, uint8_t br_x_lo, uint8_t br_x_hi, uint8_t br_y_lo, uint8_t br_y_hi);
 void MouseDigitizer(void);
 void setup_proxy_for_digitizer(void);
 bool Check_u41Report(void);
