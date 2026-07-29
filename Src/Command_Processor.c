@@ -73,6 +73,7 @@
 #define CMD_WRITE_USAGE                 (0xA2u)     /* used when in digitizer or mouse mode - i.e. when used in anything that isn't TH2 */
 #define CMD_READ_USAGE                  (0xA3u)     /* used when in digitizer or mouse mode - i.e. when used in anything that isn't TH2 */
 #define CMD_FIND_I2C_ADDRESS            (0xE0u)     /* returns the i2c address of aXiom, or reports as in SPI mode */
+#define CMD_GET_IRQ_STATE               (0xE3u)     /* returns the logical aXiom IRQ state: 1 asserted, 0 deasserted */
 
 //------------Mode switch Commands
 #define CMD_BLOCK_DIGITIZER_REPORTS     (0x87u)     /* enables/disables mouse reports */
@@ -189,15 +190,23 @@ void ProcessTBPCommand()
     {
         pTBPCommandReport = pTBPCommandReportGeneric;
 
-        // clear all proxy flags --> makes sure the process doesn't start halfway through next time
-        boInternalProxy = 0;
-        boProxyReportAvailable = 0;
-        boProxyReportToProcess = 0;
-        boProxyEnabled = 0;
-        boUSBTimeoutEnabled = false; // any command stops reports
+        /*
+         * Reading nIRQ must not alter bridge operation. In particular, leave the
+         * pin configured and preserve proxy state so this command can be polled
+         * safely while aXiom is resetting.
+         */
+        if(pTBPCommandReport[0] != CMD_GET_IRQ_STATE)
+        {
+            // clear all proxy flags --> makes sure the process doesn't start halfway through next time
+            boInternalProxy = 0;
+            boProxyReportAvailable = 0;
+            boProxyReportToProcess = 0;
+            boProxyEnabled = 0;
+            boUSBTimeoutEnabled = false; // any command stops reports
 
-        // de-init proxy gpio pin
-        DeInitProxyInterruptMode();
+            // de-init proxy gpio pin
+            DeInitProxyInterruptMode();
+        }
     }
     else if(target_interface == PRESS_INTERFACE_NUM)
     {
@@ -232,6 +241,13 @@ void ProcessTBPCommand()
                 pTBPCommandReport[1] = I2C_ERROR;
             }
 
+            break;
+        }
+//-------
+        case CMD_GET_IRQ_STATE:
+        {
+            /* nIRQ is active-low, so invert the pin level when reporting IRQ. */
+            pTBPCommandReport[1] = (HAL_GPIO_ReadPin(nIRQ_GPIO_Port, nIRQ_Pin) == GPIO_PIN_RESET) ? 1u : 0u;
             break;
         }
 //-------

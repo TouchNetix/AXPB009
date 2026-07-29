@@ -365,13 +365,25 @@ void MultiPointDigitizer(void)
             {
                 if(GetXYZFromReport(DO_NOT_IGNORE_COORDS, byTouchNum))
                 {
-                    if(byReportZ_lsb >= 0x80)   // if z coordinate is a negative value it indicates there is a hover or prox
+                    // Valid touch detected, so process it
+                    
+                    // Extract region info from X/Y
+                    volatile uint8_t region = ((DigitizerYCoord & 0x3) << 2) | (DigitizerXCoord & 0x3);
+                    if(region != 0)
                     {
-                        touched = CONFIDENCE | IN_RANGE; // hover present --> set in range bit
+                        // Skip this touch if not region zero
+                        touched = CONFIDENCE; // Set confidence bit only
                     }
                     else
                     {
-                        touched = CONFIDENCE | IN_RANGE | TIP_SWITCH; // touch present --> set tip switch bit
+                        if(byReportZ_lsb >= 0x80)   // if z coordinate is a negative value it indicates there is a hover or prox
+                        {
+                            touched = CONFIDENCE | IN_RANGE; // hover present --> set in range bit
+                        }
+                        else
+                        {
+                            touched = CONFIDENCE | IN_RANGE | TIP_SWITCH; // touch present --> set tip switch bit
+                        }
                     }
                 }
                 else
