@@ -204,8 +204,11 @@ void ProcessTBPCommand()
             boProxyEnabled = 0;
             boUSBTimeoutEnabled = false; // any command stops reports
 
-            // de-init proxy gpio pin
-            DeInitProxyInterruptMode();
+            /*
+             * Keep nIRQ configured as an input independently of proxy state.
+             * Proxy mode is controlled by the flags above; de-initialising
+             * PA0 would make the non-destructive 0xE3 IRQ read unreliable.
+             */
         }
     }
     else if(target_interface == PRESS_INTERFACE_NUM)
