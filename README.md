@@ -26,6 +26,16 @@ The files created after compilation (.elf, .hex, .bin) are put into the relevant
 
 All targets can be built at the same time by clicking 'Build all' from the Build configuration menu. Each target can also be built individually if required.
 
+# Docker/CMake Firmware Build #
+Docker and CMake can be used to create reproducible release files with the pinned Arm GNU Toolchain 15.3.rel1:
+
+```powershell
+git submodule update --init --recursive
+.\Tools\build_firmware_package.ps1
+```
+
+This builds the supported production targets `STM32F070CB` and `STM32F072CB`. The `STM32F042F6` target is excluded because the current firmware exceeds its 32 KiB flash capacity. Versioned HEX and DFU files are written to `FirmwarePackage/`.
+
 # Pin Mappings #
 
 Some of the build targets have slight variations on the pins used for certain functions. Each chip and its pin mappings has been listed below:
@@ -50,6 +60,6 @@ Some of the build targets have slight variations on the pins used for certain fu
 
 
 # Creating *.dfu files #
-If using STM32CubeProgrammer to update a ST chip, then the .elf file generated when the project is built can be used with no modifications.
+The Docker/CMake build creates versioned HEX and DFU release files automatically.
 
-If updating the firmware using ST's 'DfuSe' application a .dfu file must be created. This can be achieved by using the application 'DFU File Manager', provided by ST.
+For a manual STM32CubeIDE build, STM32CubeProgrammer can use the generated .elf file directly. If using ST's DfuSe application, a .dfu file can be created with ST's DFU File Manager.
