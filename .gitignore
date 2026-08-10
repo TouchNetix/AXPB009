@@ -62,5 +62,7 @@ Thumbs.db
 /STM32F070CB/
 /STM32F072CB/
 /STM32F072CB_Debug/
+/build/
+/FirmwarePackage/
 
 /.settings/
